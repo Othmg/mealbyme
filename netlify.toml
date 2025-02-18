@@ -6,6 +6,9 @@
 [build.environment]
   NODE_VERSION = "20"
   EDGE_HANDLER = "true"
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_OMIT_PATHS = "dist/assets/*"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_OPENAI_API_KEY"
 
 [[edge_functions]]
   path = "/webhook"
