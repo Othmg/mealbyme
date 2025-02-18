@@ -39,7 +39,7 @@ async function retryOperation<T>(
 async function findUserByEmail(email: string): Promise<string | null> {
   try {
     console.log('Looking up user by email:', email);
-    
+
     // First try using the admin API
     const { data: adminUsers, error: adminError } = await supabase.auth
       .admin.listUsers({
@@ -50,7 +50,7 @@ async function findUserByEmail(email: string): Promise<string | null> {
 
     if (adminError) {
       console.error('Admin API lookup failed:', adminError);
-      
+
       // Fallback to direct database query
       const { data: users, error: dbError } = await supabase
         .from('auth.users')
@@ -85,20 +85,24 @@ async function findUserByEmail(email: string): Promise<string | null> {
 async function handleStripeWebhook(event: Stripe.Event) {
   try {
     console.log('Processing webhook event:', event.type);
-    
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (!session?.customer || !session?.customer_email) {
+
+        // Get email from either customer_email or customer_details.email
+        const customerEmail = session.customer_email || session.customer_details?.email;
+
+        if (!session?.customer || !customerEmail) {
           console.error('Missing customer or email in session:', session);
           return;
         }
 
-        console.log('Processing checkout session for:', session.customer_email);
+        console.log('Processing checkout session for:', customerEmail);
 
-        const userId = await findUserByEmail(session.customer_email);
+        const userId = await findUserByEmail(customerEmail);
         if (!userId) {
-          console.error('Could not find user for email:', session.customer_email);
+          console.error('Could not find user for email:', customerEmail);
           return;
         }
 
@@ -122,7 +126,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-          
+
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -132,7 +136,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        
+
         // Get customer details
         const customer = await stripe.customers.retrieve(subscription.customer as string);
         if (!customer || customer.deleted || !customer.email) {
@@ -169,7 +173,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-          
+
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -199,13 +203,13 @@ export default async function handler(request: Request) {
   // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'Method not allowed. This endpoint only accepts POST requests.',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 405,
         headers: {
           'Allow': 'POST',
@@ -242,13 +246,13 @@ export default async function handler(request: Request) {
 
   if (!sig) {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'No Stripe signature found in request headers',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 400,
         headers: {
           'Content-Type': 'application/json',
@@ -270,10 +274,10 @@ export default async function handler(request: Request) {
     await handleStripeWebhook(event);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         received: true,
         type: event.type
-      }), 
+      }),
       {
         status: 200,
         headers: {
