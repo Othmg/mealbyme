@@ -5,11 +5,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  EDGE_HANDLER = "true"
 
 [[edge_functions]]
   path = "/webhook"
   function = "webhook"
-  method = ["POST", "OPTIONS"]
 
 [[redirects]]
   from = "/webhook"
