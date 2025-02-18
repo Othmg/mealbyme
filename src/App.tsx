@@ -10,8 +10,17 @@ import { Logo } from './components/Logo';
 import { checkSubscriptionStatus, isFeatureAvailable } from './lib/subscription';
 import type { Recipe } from './types';
 
+const getOpenAIKey = () => {
+  const key = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!key) {
+    console.warn('OpenAI API key is not defined');
+    return '';
+  }
+  return key;
+};
+
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  apiKey: getOpenAIKey(),
   dangerouslyAllowBrowser: true
 });
 
