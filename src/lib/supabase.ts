@@ -7,7 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
 }
 
-// Create a single supabase client instance
 export const supabase = createClient(supabaseUrl, supabaseAnonKey || '', {
   auth: {
     persistSession: true,
@@ -28,9 +27,16 @@ interface DatabaseError {
 }
 
 export const handleDatabaseError = (error: any, fallback: any = null): DatabaseError => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      error: 'Database configuration is missing. Please check your environment variables.',
+      data: fallback
+    };
+  }
+
   if (error?.message?.includes('Failed to fetch')) {
     return {
-      error: 'Unable to connect. Please check your internet connection.',
+      error: 'Unable to connect to the database. Please check your internet connection.',
       data: fallback
     };
   }
@@ -50,7 +56,7 @@ export const handleDatabaseError = (error: any, fallback: any = null): DatabaseE
   }
 
   return {
-    error: 'An unexpected error occurred. Please try again.',
+    error: error?.message || 'An unexpected error occurred. Please try again.',
     data: fallback
   };
 };

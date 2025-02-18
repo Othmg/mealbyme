@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, handleDatabaseError } from '../lib/supabase';
 import { Save, X, Crown } from 'lucide-react';
 
 interface UserPreferencesProps {
@@ -46,14 +46,20 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
       if (error) throw error;
       setIsSubscribed(data?.status === 'active');
     } catch (err) {
-      console.error('Error loading subscription status:', err);
+      const { error } = handleDatabaseError(err);
+      console.error('Error loading subscription status:', error);
     }
   };
 
   const loadPreferences = async () => {
+    setError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setError('Please sign in to access your preferences');
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('user_preferences')
@@ -62,11 +68,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading preferences:', error);
-        setError('Failed to load preferences. Please try again.');
+        const { error: errorMessage } = handleDatabaseError(error);
+        setError(errorMessage);
         return;
       }
-      
+
       if (data) {
         setPreferences({
           dietary_restrictions: data.dietary_restrictions || [],
@@ -75,8 +81,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         });
       }
     } catch (err) {
-      console.error('Error loading preferences:', err);
-      setError('Failed to load preferences. Please try again.');
+      const { error: errorMessage } = handleDatabaseError(err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -88,9 +94,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user logged in');
+      if (!user) {
+        setError('Please sign in to save preferences');
+        return;
+      }
 
-      // Use upsert with user_id as the key
       const { error } = await supabase
         .from('user_preferences')
         .upsert(
@@ -107,12 +115,12 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         );
 
       if (error) throw error;
-      
+
       onUpdate();
       onClose();
     } catch (err) {
-      console.error('Error saving preferences:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save preferences');
+      const { error: errorMessage } = handleDatabaseError(err);
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -148,6 +156,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
 
         {loading ? (
           <div className="text-center py-4">Loading...</div>
+        ) : error ? (
+          <div className="text-red-600 mb-4">{error}</div>
         ) : (
           <div className="space-y-4">
             {isSubscribed && (
@@ -208,10 +218,6 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
-
-            {error && (
-              <div className="text-red-600 text-sm">{error}</div>
-            )}
 
             <button
               onClick={handleSave}
