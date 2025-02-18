@@ -21,13 +21,16 @@ export default defineConfig({
     },
   },
   define: {
-    // Replace process.env with empty object to prevent environment variables from being bundled
+    // Prevent environment variables from being bundled in the client
     'process.env': '{}',
-    // Explicitly define only the public environment variables
+    // Only expose the URL in the client bundle as it's required for initialization
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
-    // Remove sensitive keys from the client bundle
+    // Replace sensitive values with empty strings in production bundle
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': '""',
     'import.meta.env.VITE_STRIPE_SECRET_KEY': '""',
-    'import.meta.env.VITE_OPENAI_API_KEY': '""'
+    'import.meta.env.VITE_OPENAI_API_KEY': '""',
+    'import.meta.env.MODE': JSON.stringify(process.env.MODE),
+    'import.meta.env.PROD': process.env.PROD,
+    'import.meta.env.DEV': process.env.DEV,
   }
 });
