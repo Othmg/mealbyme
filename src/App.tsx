@@ -62,8 +62,24 @@ function App() {
   }, [user]);
 
   const loadSubscriptionStatus = async () => {
-    const isActive = await checkSubscriptionStatus(user?.id);
-    setIsSubscribed(isActive);
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setIsSubscribed(data?.status === 'active');
+    } catch (err) {
+      const { error, isConfigError } = handleDatabaseError(err);
+      if (!isConfigError) {
+        console.error('Error checking subscription:', error);
+      }
+      setIsSubscribed(false); // Fallback to free tier
+    }
   };
 
   const loadDailyGenerations = async () => {
@@ -85,8 +101,10 @@ function App() {
 
       setDailyGenerations(result?.count || 0);
     } catch (err) {
-      const { error } = handleDatabaseError(err);
-      console.error('Error loading daily generations:', error);
+      const { error, isConfigError } = handleDatabaseError(err);
+      if (!isConfigError) {
+        console.error('Error loading daily generations:', error);
+      }
       setDailyGenerations(0); // Fallback to 0 to prevent blocking the user
     }
   };
@@ -156,7 +174,7 @@ function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!isSubscribed && dailyGenerations >= 5) {
       setShowSubscriptionModal(true);
       return;
@@ -167,7 +185,7 @@ function App() {
     setRecipe(null);
 
     try {
-      const dietaryRestrictionsText = dietaryRestrictions.length > 0
+      const dietaryRestrictionsText = dietaryRestrictions.length > 0 
         ? `\nDietary restrictions: ${dietaryRestrictions.join(', ')}`
         : '';
 
@@ -189,7 +207,7 @@ Please provide a detailed recipe in JSON format with the following structure:
 IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
 
       const thread = await openai.beta.threads.create();
-
+      
       await openai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: prompt
@@ -215,11 +233,11 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
       if (response?.type === 'text' && response.text) {
         try {
           const recipeData = JSON.parse(response.text.value);
-
+          
           if (!validateRecipeData(recipeData)) {
             throw new Error('Invalid recipe format received from AI');
           }
-
+          
           setRecipe(recipeData);
           await incrementDailyGenerations();
         } catch (parseError) {
@@ -239,7 +257,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
 
   const validateRecipeData = (data: any): data is Recipe => {
     if (!data || typeof data !== 'object') return false;
-
+    
     const requiredFields = ['title', 'ingredients', 'steps', 'cookingTime', 'servings', 'difficulty'];
     for (const field of requiredFields) {
       if (!(field in data)) return false;
@@ -312,7 +330,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
                     <Settings className="w-5 h-5" />
                     <span className="hidden sm:inline">Settings</span>
                   </button>
-
+                  
                   {showSettingsMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
                       <button
@@ -422,7 +440,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
 
           {!isSubscribed && dailyGenerations >= 5 && (
             <p className="text-sm text-center text-gray-600">
-              You've reached your daily limit.
+              You've reached your daily limit. 
               <button
                 type="button"
                 onClick={() => setShowSubscriptionModal(true)}
@@ -447,7 +465,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{recipe.title}</h2>
               {user && <SaveRecipeButton recipe={recipe} onSaved={handleSaveSuccess} />}
             </div>
-
+            
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
               <div className="bg-gray-50 p-3 rounded-lg flex items-center gap-2">
                 <Clock className="w-5 h-5 text-gray-600" />
@@ -471,7 +489,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
                 </div>
               </div>
             </div>
-
+            
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingredients</h3>

@@ -72,7 +72,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         setError(errorMessage);
         return;
       }
-
+      
       if (data) {
         setPreferences({
           dietary_restrictions: data.dietary_restrictions || [],
@@ -115,7 +115,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         );
 
       if (error) throw error;
-
+      
       onUpdate();
       onClose();
     } catch (err) {
