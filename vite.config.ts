@@ -16,4 +16,9 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    // Replace process.env with empty strings for sensitive variables
+    'process.env.VITE_OPENAI_API_KEY': '""',
+    'process.env.VITE_SUPABASE_ANON_KEY': '""',
+  },
 });
