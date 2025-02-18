@@ -1,37 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Get environment variables at runtime
-const getEnvVar = (key: string): string => {
-  const value = import.meta.env[key];
-  if (!value) {
-    throw new Error(`Environment variable ${key} is not defined`);
-  }
-  return value;
-};
-
 // Initialize Supabase client with required configuration
 const initSupabaseClient = () => {
-  try {
-    const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-    const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    return createClient(supabaseUrl, supabaseAnonKey, {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Supabase environment variables are not configured');
+    // Return a dummy client that will show appropriate errors to the user
+    return createClient('https://placeholder.supabase.co', 'dummy-key', {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true
-      },
-      db: {
-        schema: 'public'
-      },
-      global: {
-        headers: { 'x-application-name': 'mealbyme' }
       }
     });
-  } catch (error) {
-    console.error('Failed to initialize Supabase client:', error);
-    throw error;
   }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: { 'x-application-name': 'mealbyme' }
+    }
+  });
 };
 
 export const supabase = initSupabaseClient();
