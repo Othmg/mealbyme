@@ -2,13 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { handleStripeWebhook } from '../src/lib/stripe';
 
-const stripe = new Stripe(process.env.VITE_STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(Deno.env.get('VITE_STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
-
-export const config = {
-  path: "/webhook"
-};
 
 export default async function handler(request: Request) {
   // Handle CORS preflight requests
@@ -45,7 +41,8 @@ export default async function handler(request: Request) {
   }
 
   // Verify required environment variables
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+  if (!webhookSecret) {
     console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
     return new Response(
       JSON.stringify({
@@ -89,7 +86,7 @@ export default async function handler(request: Request) {
     const event = stripe.webhooks.constructEvent(
       body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET
+      webhookSecret
     );
 
     await handleStripeWebhook(event);
