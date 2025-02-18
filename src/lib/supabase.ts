@@ -1,20 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Validate URL format
+const isValidUrl = (urlString: string): boolean => {
+  try {
+    new URL(urlString);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // Initialize Supabase client with required configuration
 const initSupabaseClient = () => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase environment variables are not configured');
-    // Return a dummy client that will show appropriate errors to the user
-    return createClient('https://placeholder.supabase.co', 'dummy-key', {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    });
+  // Validate Supabase URL and key
+  if (!supabaseUrl || !isValidUrl(supabaseUrl)) {
+    console.error('Invalid or missing Supabase URL. Please check your environment configuration.');
+    throw new Error('Invalid Supabase URL configuration');
+  }
+
+  if (!supabaseAnonKey) {
+    console.error('Missing Supabase Anon Key. Please check your environment configuration.');
+    throw new Error('Missing Supabase authentication configuration');
   }
 
   return createClient(supabaseUrl, supabaseAnonKey, {
@@ -40,9 +49,23 @@ interface DatabaseError {
 }
 
 export const handleDatabaseError = (error: any, fallback: any = null): DatabaseError => {
+  if (error?.message?.includes('Invalid Supabase URL')) {
+    return {
+      error: 'Database configuration error. Please contact support.',
+      data: fallback
+    };
+  }
+
+  if (error?.message?.includes('Missing Supabase authentication')) {
+    return {
+      error: 'Authentication configuration error. Please contact support.',
+      data: fallback
+    };
+  }
+
   if (error?.message?.includes('Failed to fetch')) {
     return {
-      error: 'Unable to connect to the database. Please check your internet connection.',
+      error: 'Unable to connect to the database. Please check your internet connection or try again later.',
       data: fallback
     };
   }
