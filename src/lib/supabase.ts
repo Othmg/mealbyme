@@ -3,33 +3,24 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  console.error('Missing Supabase URL environment variable');
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables');
 }
 
-// Create a function to get the client that will be called on each request
-// This ensures we always have fresh credentials
-export function getSupabaseClient() {
-  // In production, we'll get the key from the server
-  const key = window.localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
-
-  return createClient(supabaseUrl, key, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    },
-    db: {
-      schema: 'public'
-    },
-    global: {
-      headers: { 'x-application-name': 'mealbyme' }
-    }
-  });
-}
-
-// Export a default client for convenience
-export const supabase = getSupabaseClient();
+// Create a single supabase client instance
+export const supabase = createClient(supabaseUrl, supabaseAnonKey || '', {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: { 'x-application-name': 'mealbyme' }
+  }
+});
 
 interface DatabaseError {
   error: string;

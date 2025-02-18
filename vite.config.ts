@@ -16,9 +16,4 @@ export default defineConfig({
       },
     },
   },
-  define: {
-    // Replace environment variables with empty strings in production build
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(''),
-    'import.meta.env.VITE_OPENAI_API_KEY': JSON.stringify(''),
-  },
 });
