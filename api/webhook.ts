@@ -27,6 +27,7 @@ async function retryOperation<T>(
       return await operation();
     } catch (error) {
       lastError = error;
+      console.error(`Retry ${i + 1} failed:`, error);
       if (i === maxRetries - 1) break;
       await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }
@@ -35,27 +36,73 @@ async function retryOperation<T>(
   throw lastError;
 }
 
+async function findUserByEmail(email: string): Promise<string | null> {
+  try {
+    console.log('Looking up user by email:', email);
+
+    // First try using the admin API
+    const { data: adminUsers, error: adminError } = await supabase.auth
+      .admin.listUsers({
+        filter: {
+          email: email
+        }
+      });
+
+    if (adminError) {
+      console.error('Admin API lookup failed:', adminError);
+
+      // Fallback to direct database query
+      const { data: users, error: dbError } = await supabase
+        .from('auth.users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (dbError) {
+        console.error('Database lookup failed:', dbError);
+        return null;
+      }
+
+      if (users) {
+        console.log('Found user via database lookup');
+        return users.id;
+      }
+    }
+
+    if (adminUsers?.length) {
+      console.log('Found user via admin API');
+      return adminUsers[0].id;
+    }
+
+    console.error('No user found for email:', email);
+    return null;
+  } catch (err) {
+    console.error('Error finding user:', err);
+    return null;
+  }
+}
+
 async function handleStripeWebhook(event: Stripe.Event) {
   try {
+    console.log('Processing webhook event:', event.type);
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (!session?.customer || !session?.customer_email) return;
-
-        // Get user by email
-        const { data: users, error: userError } = await supabase.auth
-          .admin.listUsers({
-            filter: {
-              email: session.customer_email
-            }
-          });
-
-        if (userError || !users?.length) {
-          console.error('Error finding user:', userError);
+        if (!session?.customer || !session?.customer_email) {
+          console.error('Missing customer or email in session:', session);
           return;
         }
 
-        const userId = users[0].id;
+        console.log('Processing checkout session for:', session.customer_email);
+
+        const userId = await findUserByEmail(session.customer_email);
+        if (!userId) {
+          console.error('Could not find user for email:', session.customer_email);
+          return;
+        }
+
+        console.log('Found user ID:', userId);
 
         // Update subscription status with retry logic
         await retryOperation(async () => {
@@ -71,7 +118,12 @@ async function handleStripeWebhook(event: Stripe.Event) {
               onConflict: 'user_id'
             });
 
-          if (subscriptionError) throw subscriptionError;
+          if (subscriptionError) {
+            console.error('Error updating subscription:', subscriptionError);
+            throw subscriptionError;
+          }
+
+          console.log('Successfully updated subscription for user:', userId);
         });
 
         break;
@@ -80,26 +132,24 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        
+
         // Get customer details
         const customer = await stripe.customers.retrieve(subscription.customer as string);
-        if (!customer || customer.deleted || !customer.email) return;
-
-        // Get user by email
-        const { data: users, error: userError } = await supabase.auth
-          .admin.listUsers({
-            filter: {
-              email: customer.email
-            }
-          });
-
-        if (userError || !users?.length) {
-          console.error('Error finding user:', userError);
+        if (!customer || customer.deleted || !customer.email) {
+          console.error('Invalid customer:', customer);
           return;
         }
 
-        const userId = users[0].id;
+        console.log('Processing subscription update for:', customer.email);
+
+        const userId = await findUserByEmail(customer.email);
+        if (!userId) {
+          console.error('Could not find user for email:', customer.email);
+          return;
+        }
+
         const status = subscription.status === 'active' ? 'active' : 'inactive';
+        console.log('Updating subscription status to:', status, 'for user:', userId);
 
         // Update subscription status with retry logic
         await retryOperation(async () => {
@@ -115,7 +165,12 @@ async function handleStripeWebhook(event: Stripe.Event) {
               onConflict: 'user_id'
             });
 
-          if (subscriptionError) throw subscriptionError;
+          if (subscriptionError) {
+            console.error('Error updating subscription:', subscriptionError);
+            throw subscriptionError;
+          }
+
+          console.log('Successfully updated subscription for user:', userId);
         });
 
         break;
@@ -144,13 +199,13 @@ export default async function handler(request: Request) {
   // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'Method not allowed. This endpoint only accepts POST requests.',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 405,
         headers: {
           'Allow': 'POST',
@@ -187,13 +242,13 @@ export default async function handler(request: Request) {
 
   if (!sig) {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'No Stripe signature found in request headers',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 400,
         headers: {
           'Content-Type': 'application/json',
@@ -204,19 +259,21 @@ export default async function handler(request: Request) {
   }
 
   try {
+    console.log('Verifying webhook signature...');
     const event = stripe.webhooks.constructEvent(
       body,
       sig,
       webhookSecret
     );
 
+    console.log('Received webhook event:', event.type);
     await handleStripeWebhook(event);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         received: true,
         type: event.type
-      }), 
+      }),
       {
         status: 200,
         headers: {

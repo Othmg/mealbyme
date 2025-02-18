@@ -17,7 +17,8 @@ const initSupabaseClient = () => {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storageKey: 'mealbyme-auth-token'
       },
       db: {
         schema: 'public'
@@ -35,6 +36,7 @@ interface DatabaseError {
   error: string;
   data: any;
   isConfigError?: boolean;
+  isAuthError?: boolean;
 }
 
 export const handleDatabaseError = (error: any, fallback: any = null): DatabaseError => {
@@ -55,8 +57,25 @@ export const handleDatabaseError = (error: any, fallback: any = null): DatabaseE
     };
   }
 
+  // Handle authentication errors
+  if (
+    error?.code === 'session_not_found' ||
+    error?.message?.includes('JWT expired') ||
+    error?.message?.includes('Invalid JWT') ||
+    error?.status === 401
+  ) {
+    // Clear the invalid session
+    supabase.auth.signOut().catch(console.error);
+
+    return {
+      error: 'Your session has expired. Please sign in again.',
+      data: fallback,
+      isAuthError: true
+    };
+  }
+
   // Handle specific API errors
-  if (error?.status === 401 || error?.message?.includes('Invalid API key')) {
+  if (error?.status === 403 || error?.message?.includes('Invalid API key')) {
     return {
       error: 'Unable to connect to the database. Please ensure you are connected to Supabase.',
       data: fallback,
@@ -65,30 +84,30 @@ export const handleDatabaseError = (error: any, fallback: any = null): DatabaseE
   }
 
   if (error?.message?.includes('Failed to fetch')) {
-    return { 
+    return {
       error: 'Unable to connect to the database. Please check your internet connection.',
-      data: fallback 
+      data: fallback
     };
   }
-  
+
   if (error?.code === 'PGRST116') {
-    return { 
+    return {
       error: 'No data found.',
-      data: fallback 
+      data: fallback
     };
   }
-  
+
   if (error?.code === '42P01') {
-    return { 
+    return {
       error: 'Database table not found. Please ensure the database is properly set up.',
-      data: fallback 
+      data: fallback
     };
   }
-  
+
   // Handle any other error with a proper message
-  return { 
+  return {
     error: error?.message || 'An unexpected error occurred. Please try again.',
-    data: fallback 
+    data: fallback
   };
 };
 
@@ -104,6 +123,12 @@ export const retryOperation = async <T>(
       return await operation();
     } catch (error) {
       lastError = error;
+      // Don't retry on auth errors
+      if (error?.code === 'session_not_found' ||
+        error?.message?.includes('JWT expired') ||
+        error?.status === 401) {
+        throw error;
+      }
       if (i === maxRetries - 1) break;
       await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }
