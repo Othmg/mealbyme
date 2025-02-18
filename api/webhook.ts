@@ -36,48 +36,30 @@ async function retryOperation<T>(
   throw lastError;
 }
 
-async function findUserByEmail(email: string): Promise<string | null> {
+async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
   try {
-    console.log('Looking up user by email:', email);
+    console.log('Looking up user by Stripe customer ID:', stripeCustomerId);
 
-    // First try using the admin API
-    const { data: adminUsers, error: adminError } = await supabase.auth
-      .admin.listUsers({
-        filter: {
-          email: email
-        }
-      });
+    const { data: users, error } = await supabase
+      .from('auth.users')
+      .select('id')
+      .eq('raw_app_meta_data->stripe_customer_id', stripeCustomerId)
+      .maybeSingle();
 
-    if (adminError) {
-      console.error('Admin API lookup failed:', adminError);
-
-      // Fallback to direct database query
-      const { data: users, error: dbError } = await supabase
-        .from('auth.users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (dbError) {
-        console.error('Database lookup failed:', dbError);
-        return null;
-      }
-
-      if (users) {
-        console.log('Found user via database lookup');
-        return users.id;
-      }
+    if (error) {
+      console.error('Error looking up user by Stripe customer ID:', error);
+      return null;
     }
 
-    if (adminUsers?.length) {
-      console.log('Found user via admin API');
-      return adminUsers[0].id;
+    if (users) {
+      console.log('Found user via Stripe customer ID lookup');
+      return users.id;
     }
 
-    console.error('No user found for email:', email);
+    console.error('No user found for Stripe customer ID:', stripeCustomerId);
     return null;
   } catch (err) {
-    console.error('Error finding user:', err);
+    console.error('Error finding user by Stripe customer ID:', err);
     return null;
   }
 }
@@ -90,19 +72,16 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Get email from either customer_email or customer_details.email
-        const customerEmail = session.customer_email || session.customer_details?.email;
-
-        if (!session?.customer || !customerEmail) {
-          console.error('Missing customer or email in session:', session);
+        if (!session?.customer) {
+          console.error('Missing customer in session:', session);
           return;
         }
 
-        console.log('Processing checkout session for:', customerEmail);
+        console.log('Processing checkout session for customer:', session.customer);
 
-        const userId = await findUserByEmail(customerEmail);
+        const userId = await findUserByStripeCustomerId(session.customer as string);
         if (!userId) {
-          console.error('Could not find user for email:', customerEmail);
+          console.error('Could not find user for Stripe customer:', session.customer);
           return;
         }
 
@@ -137,18 +116,16 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
 
-        // Get customer details
-        const customer = await stripe.customers.retrieve(subscription.customer as string);
-        if (!customer || customer.deleted || !customer.email) {
-          console.error('Invalid customer:', customer);
+        if (!subscription.customer) {
+          console.error('Invalid subscription:', subscription);
           return;
         }
 
-        console.log('Processing subscription update for:', customer.email);
+        console.log('Processing subscription update for customer:', subscription.customer);
 
-        const userId = await findUserByEmail(customer.email);
+        const userId = await findUserByStripeCustomerId(subscription.customer as string);
         if (!userId) {
-          console.error('Could not find user for email:', customer.email);
+          console.error('Could not find user for Stripe customer:', subscription.customer);
           return;
         }
 

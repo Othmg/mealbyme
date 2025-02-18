@@ -25,21 +25,42 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           shouldCreateUser: false,
         },
       });
-      
-      // If we get here without an error, the email exists
+
       if (!error) {
         return true;
       }
-      
-      // Check specific error messages
-      if (error.message.includes('Email not confirmed') || 
-          error.message.includes('User already registered')) {
+
+      if (error.message.includes('Email not confirmed') ||
+        error.message.includes('User already registered')) {
         return true;
       }
-      
+
       return false;
     } catch {
       return false;
+    }
+  };
+
+  const createStripeCustomer = async (email: string) => {
+    try {
+      const response = await fetch('/.netlify/edge-functions/create-customer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create Stripe customer');
+      }
+
+      const { customerId } = await response.json();
+      return customerId;
+    } catch (err) {
+      console.error('Error creating Stripe customer:', err);
+      // Don't throw - we still want to complete signup even if Stripe fails
+      return null;
     }
   };
 
@@ -51,7 +72,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (isSignUp) {
-        // Check if email exists before attempting to sign up
         const emailExists = await checkEmailExists(email);
         if (emailExists) {
           setError('An account with this email already exists. Please sign in instead.');
@@ -59,10 +79,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           return;
         }
 
+        // Create Stripe customer first
+        const stripeCustomerId = await createStripeCustomer(email);
+
+        // Sign up the user with the Stripe customer ID in metadata
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              stripe_customer_id: stripeCustomerId
+            }
+          }
         });
+
         if (error) throw error;
         setSignUpSuccess(true);
       } else {
