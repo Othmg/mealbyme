@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { supabase } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -72,6 +72,8 @@ export default async function handler(request: Request) {
         email: user.email,
         metadata: {
           user_id: user.id,
+          source: 'mealbyme',
+          created_at: new Date().toISOString(),
         },
       });
       stripeCustomerId = customer.id;
@@ -91,17 +93,38 @@ export default async function handler(request: Request) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_1QtqrTFlD7EmpHETG9Z5LlCz', // Replace with your actual price ID
+          price: Deno.env.get('price_1QtqrTFlD7EmpHETG9Z5LlCz'), // Premium subscription price ID
           quantity: 1,
         },
       ],
       mode: 'subscription',
-      success_url: `${request.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.headers.get('origin')}/subscription/cancel`,
+      allow_promotion_codes: true,
+      billing_address_collection: 'auto',
+      customer_email: user.email,
+      automatic_tax: {
+        enabled: true,
+      },
+      tax_id_collection: {
+        enabled: true,
+      },
+      success_url: `${request.headers.get('origin')}/profile?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${request.headers.get('origin')}/subscription?canceled=true`,
       client_reference_id: user.id,
       subscription_data: {
         metadata: {
           user_id: user.id,
+          source: 'mealbyme',
+          created_at: new Date().toISOString(),
+        },
+        description: 'MealByMe Premium Subscription',
+      },
+      metadata: {
+        user_id: user.id,
+        source: 'mealbyme',
+      },
+      custom_text: {
+        submit: {
+          message: 'By subscribing, you agree to our Terms of Service and Privacy Policy.',
         },
       },
     });
