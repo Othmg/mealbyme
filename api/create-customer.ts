@@ -1,7 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+// Ensure the secret key is present
+const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+if (!stripeSecretKey) {
+  throw new Error('STRIPE_SECRET_KEY is not set in the environment.');
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16',
 });
 
@@ -14,8 +19,8 @@ export default async function handler(request: Request) {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400'
-      }
+        'Access-Control-Max-Age': '86400',
+      },
     });
   }
 
@@ -25,47 +30,68 @@ export default async function handler(request: Request) {
       JSON.stringify({
         error: {
           message: 'Method not allowed',
-          type: 'invalid_request_error'
-        }
+          type: 'invalid_request_error',
+        },
       }),
       {
         status: 405,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+
+  let payload: { email?: string };
+  try {
+    payload = await request.json();
+  } catch (jsonErr) {
+    console.error('Invalid JSON payload:', jsonErr);
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: 'Invalid JSON payload',
+          type: 'invalid_request_error',
+        },
+      }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+
+  const { email } = payload;
+  if (!email) {
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: 'Email is required',
+          type: 'invalid_request_error',
+        },
+      }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       }
     );
   }
 
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return new Response(
-        JSON.stringify({
-          error: {
-            message: 'Email is required',
-            type: 'invalid_request_error'
-          }
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      );
-    }
-
     // Check if customer already exists
     const existingCustomers = await stripe.customers.list({
       email,
-      limit: 1
+      limit: 1,
     });
 
-    let customerId;
+    let customerId: string;
 
     if (existingCustomers.data.length > 0) {
       // Use existing customer
@@ -76,8 +102,8 @@ export default async function handler(request: Request) {
         email,
         metadata: {
           source: 'mealbyme',
-          created_at: new Date().toISOString()
-        }
+          created_at: new Date().toISOString(),
+        },
       });
       customerId = customer.id;
     }
@@ -85,14 +111,14 @@ export default async function handler(request: Request) {
     return new Response(
       JSON.stringify({
         customerId,
-        isExisting: existingCustomers.data.length > 0
+        isExisting: existingCustomers.data.length > 0,
       }),
       {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
+          'Access-Control-Allow-Origin': '*',
+        },
       }
     );
   } catch (err) {
@@ -101,15 +127,15 @@ export default async function handler(request: Request) {
       JSON.stringify({
         error: {
           message: err instanceof Error ? err.message : 'An error occurred',
-          type: 'api_error'
-        }
+          type: 'api_error',
+        },
       }),
       {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
+          'Access-Control-Allow-Origin': '*',
+        },
       }
     );
   }
