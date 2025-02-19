@@ -22,13 +22,13 @@ export default async function handler(request: Request) {
   // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'Method not allowed',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 405,
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ export default async function handler(request: Request) {
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         customerId,
         isExisting: existingCustomers.data.length > 0
       }),
