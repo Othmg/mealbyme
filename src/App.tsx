@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, Users, ChefHat as DifficultyIcon, UserCircle2, Settings, Crown, LogOut } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, Clock, Users, ChefHat as DifficultyIcon, UserCircle2, Settings, Crown, LogOut, Leaf, AlertTriangle, BookmarkPlus } from 'lucide-react';
 import OpenAI from 'openai';
 import { supabase, handleDatabaseError, retryOperation } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
@@ -21,6 +22,7 @@ interface RecipeFormData {
 }
 
 function App() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<RecipeFormData>({
     desiredDish: '',
     likedIngredients: '',
@@ -96,7 +98,7 @@ function App() {
       } else if (!isConfigError) {
         console.error('Error checking subscription:', error);
       }
-      setIsSubscribed(false); // Fallback to free tier
+      setIsSubscribed(false);
     }
   };
 
@@ -123,7 +125,7 @@ function App() {
       if (!isConfigError) {
         console.error('Error loading daily generations:', error);
       }
-      setDailyGenerations(0); // Fallback to 0 to prevent blocking the user
+      setDailyGenerations(0);
     }
   };
 
@@ -219,7 +221,17 @@ Please provide a detailed recipe in JSON format with the following structure:
   "steps": [{"number": 1, "instruction": "step instruction"}],
   "cookingTime": {"prep": "time", "cook": "time", "total": "time"},
   "servings": number,
-  "difficulty": "Easy/Medium/Hard"
+  "difficulty": "Easy/Medium/Hard",
+  "dietaryInfo": {
+    "calories": number,
+    "protein": "amount in grams",
+    "carbs": "amount in grams",
+    "fats": "amount in grams",
+    "fiber": "amount in grams",
+    "sodium": "amount in mg",
+    "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
+    "allergens": ["dairy", "gluten", "nuts", etc]
+  }
 }
 
 IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
@@ -232,7 +244,7 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
       });
 
       const run = await openai.beta.threads.runs.create(thread.id, {
-        assistant_id: "asst_174bXh18C91uWqqQx3MRnqus"
+        assistant_id: "asst_k1fs4UtX2ZFHDIkfwj8PayXa"
       });
 
       let response;
@@ -351,6 +363,16 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
                   
                   {showSettingsMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                      <button
+                        onClick={() => {
+                          setShowSettingsMenu(false);
+                          navigate('/saved-recipes');
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <BookmarkPlus className="w-4 h-4" />
+                        Saved Recipes
+                      </button>
                       <button
                         onClick={() => {
                           setShowSettingsMenu(false);
@@ -541,6 +563,78 @@ IMPORTANT: Respond with ONLY the JSON object, no additional text.`;
                 </div>
               </div>
             </div>
+
+            {isSubscribed && recipe.dietaryInfo && (
+              <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Nutritional Information</h3>
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-5 h-5 text-[#FFB400]" />
+                    <span className="text-sm text-gray-600">Premium Feature</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Calories</p>
+                    <p className="font-medium">{recipe.dietaryInfo.calories} kcal</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Protein</p>
+                    <p className="font-medium">{recipe.dietaryInfo.protein}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Carbs</p>
+                    <p className="font-medium">{recipe.dietaryInfo.carbs}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Fats</p>
+                    <p className="font-medium">{recipe.dietaryInfo.fats}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Fiber</p>
+                    <p className="font-medium">{recipe.dietaryInfo.fiber}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Sodium</p>
+                    <p className="font-medium">{recipe.dietaryInfo.sodium}</p>
+                  </div>
+                </div>
+                
+                {recipe.dietaryInfo.dietaryTags.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600 mb-2">Dietary Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {recipe.dietaryInfo.dietaryTags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-sm"
+                        >
+                          <Leaf className="w-3 h-3" />
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {recipe.dietaryInfo.allergens.length > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Allergens</p>
+                    <div className="flex flex-wrap gap-2">
+                      {recipe.dietaryInfo.allergens.map((allergen, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-sm"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          {allergen}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Instructions</h3>

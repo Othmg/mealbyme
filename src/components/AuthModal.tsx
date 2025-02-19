@@ -19,7 +19,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
-      console.log('Creating Stripe customer for:', email);
       const response = await fetch('/api/create-customer', {
         method: 'POST',
         headers: {
@@ -29,16 +28,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Error creating Stripe customer:', {
-          status: response.status,
-          error: errorData,
-        });
-        return null;
+        throw new Error('Failed to create customer account');
       }
 
       const data = await response.json();
-      console.log('Stripe customer created:', data);
       return data.customerId || null;
     } catch (err) {
       console.error('Error creating Stripe customer:', err);
@@ -46,26 +39,48 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   };
 
+  const validateInput = () => {
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    if (!validateInput()) {
+      return;
+    }
+
     setLoading(true);
     setSignUpSuccess(false);
 
     try {
       if (isSignUp) {
         // Create Stripe customer first
-        console.log('Creating Stripe customer before signup');
         const stripeCustomerId = await createStripeCustomer(email);
-
         if (!stripeCustomerId) {
-          throw new Error('Failed to create Stripe customer. Please try again.');
+          throw new Error('Failed to create customer account. Please try again.');
         }
 
         // Store Stripe customer ID in localStorage temporarily
         localStorage.setItem(`stripe_customer_pending_${email}`, stripeCustomerId);
 
-        // Proceed with Supabase signup, passing initial metadata if possible
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -76,11 +91,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         });
 
         if (signUpError) {
-          // Remove stored Stripe ID if signup fails
-          localStorage.removeItem(`stripe_customer_pending_${email}`);
-          if (signUpError.message?.includes('Password should be at least')) {
-            throw new Error('Password must be at least 6 characters long');
-          }
           if (signUpError.message?.includes('User already registered')) {
             throw new Error('An account with this email already exists. Please sign in instead.');
           }
@@ -93,7 +103,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         setSignUpSuccess(true);
       } else {
-        // Handle sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -101,23 +110,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         if (signInError) {
           if (signInError.message?.includes('Invalid login credentials')) {
-            throw new Error('Invalid email or password');
+            throw new Error('Invalid email or password. Please try again.');
           }
           throw signInError;
         }
 
-        // Check for pending Stripe customer ID after successful sign in
+        // Check for pending Stripe customer ID
         const pendingStripeId = localStorage.getItem(`stripe_customer_pending_${email}`);
         if (pendingStripeId) {
-          console.log('Found pending Stripe customer ID, updating user metadata');
           const { error: updateError } = await supabase.auth.updateUser({
             data: { stripe_customer_id: pendingStripeId }
           });
 
-          if (updateError) {
-            console.error('Error updating user metadata with Stripe ID:', updateError);
-          } else {
-            console.log('Successfully updated user metadata with Stripe ID');
+          if (!updateError) {
             localStorage.removeItem(`stripe_customer_pending_${email}`);
           }
         }
@@ -126,7 +131,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
       setSignUpSuccess(false);
     } finally {
       setLoading(false);
@@ -197,7 +202,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 required
                 disabled={loading}
@@ -212,7 +220,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 required
                 minLength={6}

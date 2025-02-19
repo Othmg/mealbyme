@@ -6,28 +6,29 @@ const initSupabaseClient = () => {
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Please connect to Supabase to enable all features.');
+    console.warn('Missing Supabase configuration. Please connect to Supabase to enable all features.');
+    return createClient(
+      'https://placeholder-url.supabase.co',
+      'placeholder-key',
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          storageKey: 'mealbyme-auth-token'
+        }
+      }
+    );
   }
 
-  // Return a client that will work with appropriate error handling
-  return createClient(
-    supabaseUrl || 'https://placeholder-url.supabase.co',
-    supabaseAnonKey || 'placeholder-key',
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: 'mealbyme-auth-token'
-      },
-      db: {
-        schema: 'public'
-      },
-      global: {
-        headers: { 'x-application-name': 'mealbyme' }
-      }
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'mealbyme-auth-token'
     }
-  );
+  });
 };
 
 export const supabase = initSupabaseClient();
@@ -40,20 +41,20 @@ interface DatabaseError {
 }
 
 export const handleDatabaseError = (error: any, fallback: any = null): DatabaseError => {
-  // Handle empty or undefined errors
-  if (!error || Object.keys(error).length === 0) {
-    return {
-      error: 'An unexpected error occurred. Please try again.',
-      data: fallback
-    };
-  }
-
-  // Check for configuration errors first
+  // Handle configuration errors first
   if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
     return {
       error: 'Please connect to Supabase to enable this feature.',
       data: fallback,
       isConfigError: true
+    };
+  }
+
+  // Handle empty or undefined errors
+  if (!error) {
+    return {
+      error: 'An unexpected error occurred. Please try again.',
+      data: fallback
     };
   }
 
@@ -74,36 +75,29 @@ export const handleDatabaseError = (error: any, fallback: any = null): DatabaseE
     };
   }
 
-  // Handle specific API errors
-  if (error?.status === 403 || error?.message?.includes('Invalid API key')) {
-    return {
-      error: 'Unable to connect to the database. Please ensure you are connected to Supabase.',
-      data: fallback,
-      isConfigError: true
-    };
-  }
-
-  if (error?.message?.includes('Failed to fetch')) {
+  // Handle connection errors
+  if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
     return { 
       error: 'Unable to connect to the database. Please check your internet connection.',
       data: fallback 
     };
   }
-  
+
+  // Handle specific database errors
   if (error?.code === 'PGRST116') {
     return { 
       error: 'No data found.',
       data: fallback 
     };
   }
-  
+
   if (error?.code === '42P01') {
     return { 
       error: 'Database table not found. Please ensure the database is properly set up.',
       data: fallback 
     };
   }
-  
+
   // Handle any other error with a proper message
   return { 
     error: error?.message || 'An unexpected error occurred. Please try again.',
@@ -123,12 +117,16 @@ export const retryOperation = async <T>(
       return await operation();
     } catch (error) {
       lastError = error;
-      // Don't retry on auth errors
+      
+      // Don't retry on auth errors or configuration errors
       if (error?.code === 'session_not_found' || 
           error?.message?.includes('JWT expired') ||
-          error?.status === 401) {
+          error?.status === 401 ||
+          !import.meta.env.VITE_SUPABASE_URL ||
+          !import.meta.env.VITE_SUPABASE_ANON_KEY) {
         throw error;
       }
+      
       if (i === maxRetries - 1) break;
       await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }

@@ -1,4 +1,5 @@
 export interface Recipe {
+  id?: string;
   title: string;
   ingredients: {
     name: string;
@@ -16,4 +17,14 @@ export interface Recipe {
   };
   servings: number;
   difficulty: string;
+  dietaryInfo?: {
+    calories: number;
+    protein: string;
+    carbs: string;
+    fats: string;
+    fiber: string;
+    sodium: string;
+    dietaryTags: string[];
+    allergens: string[];
+  };
 }
