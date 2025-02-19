@@ -102,12 +102,6 @@ export default async function handler(request: Request) {
       mode: 'subscription',
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      automatic_tax: {
-        enabled: true,
-      },
-      tax_id_collection: {
-        enabled: true,
-      },
       success_url: `${origin}/profile?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/subscription?canceled=true`,
       client_reference_id: user.id,
