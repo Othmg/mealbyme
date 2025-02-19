@@ -39,7 +39,7 @@ async function retryOperation<T>(
 async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
   try {
     console.log('Looking up user by Stripe customer ID:', stripeCustomerId);
-    
+
     const { data: users, error } = await supabase
       .from('auth.users')
       .select('id')
@@ -67,17 +67,20 @@ async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<str
 async function handleStripeWebhook(event: Stripe.Event) {
   try {
     console.log('Processing webhook event:', event.type);
-    
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        
+
         if (!session?.customer) {
           console.error('Missing customer in session:', session);
           return;
         }
 
         console.log('Processing checkout session for customer:', session.customer);
+
+        // Get subscription details
+        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
 
         const userId = await findUserByStripeCustomerId(session.customer as string);
         if (!userId) {
@@ -93,7 +96,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             .from('subscriptions')
             .upsert({
               user_id: userId,
-              status: 'active',
+              status: subscription.status === 'active' ? 'active' : 'inactive',
               stripe_customer_id: session.customer as string,
               stripe_subscription_id: session.subscription as string,
               updated_at: new Date().toISOString()
@@ -105,7 +108,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-          
+
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -115,7 +118,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        
+
         if (!subscription.customer) {
           console.error('Invalid subscription:', subscription);
           return;
@@ -150,7 +153,51 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-          
+
+          console.log('Successfully updated subscription for user:', userId);
+        });
+
+        break;
+      }
+
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+
+        if (!invoice.customer || !invoice.subscription) {
+          console.error('Invalid invoice:', invoice);
+          return;
+        }
+
+        console.log('Processing successful payment for customer:', invoice.customer);
+
+        const userId = await findUserByStripeCustomerId(invoice.customer as string);
+        if (!userId) {
+          console.error('Could not find user for Stripe customer:', invoice.customer);
+          return;
+        }
+
+        // Get subscription details
+        const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+
+        // Update subscription status with retry logic
+        await retryOperation(async () => {
+          const { error: subscriptionError } = await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: userId,
+              status: subscription.status === 'active' ? 'active' : 'inactive',
+              stripe_customer_id: invoice.customer as string,
+              stripe_subscription_id: invoice.subscription as string,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (subscriptionError) {
+            console.error('Error updating subscription:', subscriptionError);
+            throw subscriptionError;
+          }
+
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -180,13 +227,13 @@ export default async function handler(request: Request) {
   // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'Method not allowed. This endpoint only accepts POST requests.',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 405,
         headers: {
           'Allow': 'POST',
@@ -223,13 +270,13 @@ export default async function handler(request: Request) {
 
   if (!sig) {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: {
           message: 'No Stripe signature found in request headers',
           type: 'invalid_request_error'
         }
-      }), 
-      { 
+      }),
+      {
         status: 400,
         headers: {
           'Content-Type': 'application/json',
@@ -251,10 +298,10 @@ export default async function handler(request: Request) {
     await handleStripeWebhook(event);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         received: true,
         type: event.type
-      }), 
+      }),
       {
         status: 200,
         headers: {
