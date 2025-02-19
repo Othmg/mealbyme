@@ -17,10 +17,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   if (!isOpen) return null;
 
-  const createStripeCustomer = async (email: string) => {
+  // Function to create a Stripe customer via our Edge function
+  const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
       console.log('Creating Stripe customer for:', email);
-
       const response = await fetch('/api/create-customer', {
         method: 'POST',
         headers: {
@@ -33,7 +33,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         const errorData = await response.text();
         console.error('Error creating Stripe customer:', {
           status: response.status,
-          error: errorData
+          error: errorData,
         });
         return null;
       }
@@ -55,17 +55,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (isSignUp) {
-        // Proceed with sign up and let Supabase handle the uniqueness check
+        // Sign up with Supabase
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: window.location.origin,
-          }
+          options: { emailRedirectTo: window.location.origin },
         });
 
         if (signUpError) {
-          // Handle specific error cases
           if (signUpError.message?.includes('Password should be at least')) {
             throw new Error('Password must be at least 6 characters long');
           }
@@ -79,20 +76,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           throw new Error('Failed to create account. Please try again.');
         }
 
-        // Create Stripe customer and update user metadata
+        // Create Stripe customer and update Supabase user metadata
         console.log('Creating Stripe customer after successful signup');
         const stripeCustomerId = await createStripeCustomer(email);
 
         if (stripeCustomerId) {
           console.log('Updating user metadata with Stripe ID:', stripeCustomerId);
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: { stripe_customer_id: stripeCustomerId }
+          const { user, error: updateError } = await supabase.auth.update({
+            data: { stripe_customer_id: stripeCustomerId },
           });
 
           if (updateError) {
-            console.error('Error updating user with Stripe ID:', updateError);
+            console.error('Error updating user metadata with Stripe ID:', updateError);
           } else {
-            console.log('Successfully updated user metadata with Stripe ID');
+            console.log('Successfully updated user metadata:', user);
           }
         } else {
           console.error('Failed to create Stripe customer - no customer ID returned');
@@ -100,19 +97,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         setSignUpSuccess(true);
       } else {
-        // Handle sign in
+        // Sign in with Supabase
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-
         if (signInError) {
           if (signInError.message?.includes('Invalid login credentials')) {
             throw new Error('Invalid email or password');
           }
           throw signInError;
         }
-
         onClose();
       }
     } catch (err) {
@@ -127,17 +122,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-          disabled={loading}
-        >
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700" disabled={loading}>
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-2xl font-bold mb-6">
-          {isSignUp ? 'Create Account' : 'Sign In'}
-        </h2>
+        <h2 className="text-2xl font-bold mb-6">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
 
         {isSignUp && !signUpSuccess && (
           <div className="mb-6 bg-gray-50 p-4 rounded-lg">
