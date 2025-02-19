@@ -21,7 +21,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       console.log('Creating Stripe customer for:', email);
 
-      const response = await fetch('/create-customer', {
+      const response = await fetch('/api/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
