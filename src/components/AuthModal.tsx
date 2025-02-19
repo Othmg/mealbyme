@@ -20,7 +20,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
       console.log('Creating Stripe customer for:', email);
-      const response = await fetch('/create-customer', {
+      const response = await fetch('/api/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,22 +65,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         // Store Stripe customer ID in localStorage temporarily
         localStorage.setItem(`stripe_customer_pending_${email}`, stripeCustomerId);
 
-        // Proceed with Supabase signup
+        // Proceed with Supabase signup, passing initial metadata if possible
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: {
-              stripe_customer_id: stripeCustomerId // Set initial metadata
-            }
+            data: { stripe_customer_id: stripeCustomerId }
           }
         });
 
         if (signUpError) {
           // Remove stored Stripe ID if signup fails
           localStorage.removeItem(`stripe_customer_pending_${email}`);
-
           if (signUpError.message?.includes('Password should be at least')) {
             throw new Error('Password must be at least 6 characters long');
           }
