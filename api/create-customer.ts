@@ -1,8 +1,9 @@
 import Stripe from 'stripe';
 
-// Ensure the secret key is present
+// Validate the environment variable immediately
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 if (!stripeSecretKey) {
+  console.error('STRIPE_SECRET_KEY is not set in the environment.');
   throw new Error('STRIPE_SECRET_KEY is not set in the environment.');
 }
 
@@ -11,8 +12,15 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 
 export default async function handler(request: Request) {
+  // Log basic request info
+  console.log('Received request:', {
+    method: request.method,
+    url: request.url,
+  });
+
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
+    console.log('Handling CORS preflight');
     return new Response(null, {
       status: 204,
       headers: {
@@ -26,6 +34,7 @@ export default async function handler(request: Request) {
 
   // Only allow POST requests
   if (request.method !== 'POST') {
+    console.warn('Method not allowed:', request.method);
     return new Response(
       JSON.stringify({
         error: {
@@ -43,11 +52,13 @@ export default async function handler(request: Request) {
     );
   }
 
+  // Parse JSON body with detailed logging
   let payload: { email?: string };
   try {
     payload = await request.json();
-  } catch (jsonErr) {
-    console.error('Invalid JSON payload:', jsonErr);
+    console.log('Parsed payload:', payload);
+  } catch (jsonError) {
+    console.error('Error parsing JSON:', jsonError);
     return new Response(
       JSON.stringify({
         error: {
@@ -67,6 +78,7 @@ export default async function handler(request: Request) {
 
   const { email } = payload;
   if (!email) {
+    console.warn('Email not provided in payload.');
     return new Response(
       JSON.stringify({
         error: {
@@ -84,50 +96,22 @@ export default async function handler(request: Request) {
     );
   }
 
+  // Attempt to list existing customers for the provided email
+  let existingCustomers;
   try {
-    // Check if customer already exists
-    const existingCustomers = await stripe.customers.list({
+    console.log(`Listing customers for email: ${email}`);
+    existingCustomers = await stripe.customers.list({
       email,
       limit: 1,
     });
-
-    let customerId: string;
-
-    if (existingCustomers.data.length > 0) {
-      // Use existing customer
-      customerId = existingCustomers.data[0].id;
-    } else {
-      // Create a new customer
-      const customer = await stripe.customers.create({
-        email,
-        metadata: {
-          source: 'mealbyme',
-          created_at: new Date().toISOString(),
-        },
-      });
-      customerId = customer.id;
-    }
-
-    return new Response(
-      JSON.stringify({
-        customerId,
-        isExisting: existingCustomers.data.length > 0,
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
-  } catch (err) {
-    console.error('Error creating/retrieving customer:', err);
+    console.log('Stripe customers list response:', JSON.stringify(existingCustomers));
+  } catch (listError) {
+    console.error('Error listing customers for email:', email, listError);
     return new Response(
       JSON.stringify({
         error: {
-          message: err instanceof Error ? err.message : 'An error occurred',
-          type: 'api_error',
+          message: 'Error listing customers from Stripe',
+          type: 'StripeConnectionError',
         },
       }),
       {
@@ -139,4 +123,54 @@ export default async function handler(request: Request) {
       }
     );
   }
+
+  let customerId: string;
+  let isExisting = false;
+
+  if (existingCustomers.data.length > 0) {
+    customerId = existingCustomers.data[0].id;
+    isExisting = true;
+    console.log(`Existing customer found for email ${email}: ${customerId}`);
+  } else {
+    try {
+      console.log(`No existing customer found for email ${email}. Creating new customer...`);
+      const customer = await stripe.customers.create({
+        email,
+        metadata: {
+          source: 'mealbyme',
+          created_at: new Date().toISOString(),
+        },
+      });
+      customerId = customer.id;
+      console.log('New customer created:', JSON.stringify(customer));
+    } catch (createError) {
+      console.error('Error creating new customer for email:', email, createError);
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: 'Error creating new customer on Stripe',
+            type: 'StripeConnectionError',
+          },
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+  }
+
+  // Return the successful response with detailed logging
+  const responseBody = { customerId, isExisting };
+  console.log('Returning successful response:', responseBody);
+  return new Response(JSON.stringify(responseBody), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
 }
