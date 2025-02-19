@@ -17,11 +17,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   if (!isOpen) return null;
 
-  // Function to create a Stripe customer via our Edge function
   const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
       console.log('Creating Stripe customer for:', email);
-      const response = await fetch('/api/create-customer', {
+      const response = await fetch('/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,14 +54,33 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (isSignUp) {
-        // Sign up with Supabase
+        // Create Stripe customer first
+        console.log('Creating Stripe customer before signup');
+        const stripeCustomerId = await createStripeCustomer(email);
+
+        if (!stripeCustomerId) {
+          throw new Error('Failed to create Stripe customer. Please try again.');
+        }
+
+        // Store Stripe customer ID in localStorage temporarily
+        localStorage.setItem(`stripe_customer_pending_${email}`, stripeCustomerId);
+
+        // Proceed with Supabase signup
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              stripe_customer_id: stripeCustomerId // Set initial metadata
+            }
+          }
         });
 
         if (signUpError) {
+          // Remove stored Stripe ID if signup fails
+          localStorage.removeItem(`stripe_customer_pending_${email}`);
+
           if (signUpError.message?.includes('Password should be at least')) {
             throw new Error('Password must be at least 6 characters long');
           }
@@ -76,39 +94,37 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           throw new Error('Failed to create account. Please try again.');
         }
 
-        // Create Stripe customer and update Supabase user metadata
-        console.log('Creating Stripe customer after successful signup');
-        const stripeCustomerId = await createStripeCustomer(email);
-
-        if (stripeCustomerId) {
-          console.log('Updating user metadata with Stripe ID:', stripeCustomerId);
-          // Use updateUser which is available in Supabase v1
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: { stripe_customer_id: stripeCustomerId },
-          });
-
-          if (updateError) {
-            console.error('Error updating user metadata with Stripe ID:', updateError);
-          } else {
-            console.log('Successfully updated user metadata with Stripe ID');
-          }
-        } else {
-          console.error('Failed to create Stripe customer - no customer ID returned');
-        }
-
         setSignUpSuccess(true);
       } else {
-        // Sign in with Supabase
+        // Handle sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+
         if (signInError) {
           if (signInError.message?.includes('Invalid login credentials')) {
             throw new Error('Invalid email or password');
           }
           throw signInError;
         }
+
+        // Check for pending Stripe customer ID after successful sign in
+        const pendingStripeId = localStorage.getItem(`stripe_customer_pending_${email}`);
+        if (pendingStripeId) {
+          console.log('Found pending Stripe customer ID, updating user metadata');
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: { stripe_customer_id: pendingStripeId }
+          });
+
+          if (updateError) {
+            console.error('Error updating user metadata with Stripe ID:', updateError);
+          } else {
+            console.log('Successfully updated user metadata with Stripe ID');
+            localStorage.removeItem(`stripe_customer_pending_${email}`);
+          }
+        }
+
         onClose();
       }
     } catch (err) {
@@ -123,10 +139,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700" disabled={loading}>
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          disabled={loading}
+        >
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-2xl font-bold mb-6">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
+
+        <h2 className="text-2xl font-bold mb-6">
+          {isSignUp ? 'Create Account' : 'Sign In'}
+        </h2>
 
         {isSignUp && !signUpSuccess && (
           <div className="mb-6 bg-gray-50 p-4 rounded-lg">
@@ -183,6 +206,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 disabled={loading}
               />
             </div>
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -203,11 +227,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </p>
               )}
             </div>
+
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-100">
                 {error}
               </div>
             )}
+
             <button
               type="submit"
               disabled={loading}
@@ -222,6 +248,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 isSignUp ? 'Create Account' : 'Sign In'
               )}
             </button>
+
             <div className="text-sm text-center">
               <button
                 type="button"
