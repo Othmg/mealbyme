@@ -6,8 +6,11 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
 });
 
 export default async function handler(request: Request) {
+  console.log('Edge function handler called');
+
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response(null, {
       status: 204,
       headers: {
@@ -21,6 +24,7 @@ export default async function handler(request: Request) {
 
   // Only allow POST requests
   if (request.method !== 'POST') {
+    console.log('Invalid method:', request.method);
     return new Response(
       JSON.stringify({
         error: {
@@ -39,9 +43,11 @@ export default async function handler(request: Request) {
   }
 
   try {
+    console.log('Processing POST request');
     const { email } = await request.json();
 
     if (!email) {
+      console.log('Email is required but was not provided');
       return new Response(
         JSON.stringify({
           error: {
@@ -59,6 +65,7 @@ export default async function handler(request: Request) {
       );
     }
 
+    console.log('Checking for existing customer with email:', email);
     // Check if customer already exists
     const existingCustomers = await stripe.customers.list({
       email,
@@ -70,8 +77,10 @@ export default async function handler(request: Request) {
     if (existingCustomers.data.length > 0) {
       // Use existing customer
       customerId = existingCustomers.data[0].id;
+      console.log('Found existing customer:', customerId);
     } else {
       // Create a new customer
+      console.log('Creating new customer');
       const customer = await stripe.customers.create({
         email,
         metadata: {
@@ -80,6 +89,7 @@ export default async function handler(request: Request) {
         }
       });
       customerId = customer.id;
+      console.log('Created new customer:', customerId);
     }
 
     return new Response(
