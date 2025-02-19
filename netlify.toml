@@ -14,9 +14,19 @@
   path = "/webhook"
   function = "webhook"
 
+[[edge_functions]]
+  path = "/create-customer"
+  function = "create-customer"
+
 [[redirects]]
   from = "/webhook"
   to = "/.netlify/edge-functions/webhook"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/create-customer"
+  to = "/.netlify/edge-functions/create-customer"
   status = 200
   force = true
 
@@ -31,3 +41,10 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, stripe-signature"
+
+[[headers]]
+  for = "/create-customer"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"

@@ -20,8 +20,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const createStripeCustomer = async (email: string) => {
     try {
       console.log('Creating Stripe customer for:', email);
-      
-      const response = await fetch('/.netlify/edge-functions/create-customer', {
+
+      const response = await fetch('/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,16 +29,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
+        const errorData = await response.text();
         console.error('Error creating Stripe customer:', {
           status: response.status,
-          data
+          error: errorData
         });
         return null;
       }
 
+      const data = await response.json();
       console.log('Stripe customer created:', data);
       return data.customerId || null;
     } catch (err) {
@@ -82,7 +82,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         // Create Stripe customer and update user metadata
         console.log('Creating Stripe customer after successful signup');
         const stripeCustomerId = await createStripeCustomer(email);
-        
+
         if (stripeCustomerId) {
           console.log('Updating user metadata with Stripe ID:', stripeCustomerId);
           const { error: updateError } = await supabase.auth.updateUser({
