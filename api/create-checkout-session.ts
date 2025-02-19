@@ -59,7 +59,7 @@ export default async function handler(request: Request) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }
@@ -91,7 +91,7 @@ export default async function handler(request: Request) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_YOUR_PRICE_ID', // Replace with your actual price ID
+          price: 'price_1QtqrTFlD7EmpHETG9Z5LlCz', // Replace with your actual price ID
           quantity: 1,
         },
       ],
