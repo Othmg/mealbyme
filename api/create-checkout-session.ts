@@ -102,7 +102,6 @@ export default async function handler(request: Request) {
       mode: 'subscription',
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      customer_email: user.email,
       automatic_tax: {
         enabled: true,
       },
