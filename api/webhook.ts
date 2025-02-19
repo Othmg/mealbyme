@@ -39,7 +39,7 @@ async function retryOperation<T>(
 async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
   try {
     console.log('Looking up user by Stripe customer ID:', stripeCustomerId);
-
+    
     // Use rpc to query auth.users table
     const { data: users, error } = await supabase.rpc('get_user_by_stripe_customer_id', {
       p_stripe_customer_id: stripeCustomerId
@@ -66,11 +66,11 @@ async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<str
 async function handleStripeWebhook(event: Stripe.Event) {
   try {
     console.log('Processing webhook event:', event.type);
-
+    
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-
+        
         if (!session?.customer) {
           console.error('Missing customer in session:', session);
           return;
@@ -80,7 +80,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
 
         // Get subscription details
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-
+        
         const userId = await findUserByStripeCustomerId(session.customer as string);
         if (!userId) {
           console.error('Could not find user for Stripe customer:', session.customer);
@@ -107,7 +107,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-
+          
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -117,7 +117,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-
+        
         if (!subscription.customer) {
           console.error('Invalid subscription:', subscription);
           return;
@@ -152,7 +152,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-
+          
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -161,7 +161,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
-
+        
         if (!invoice.customer || !invoice.subscription) {
           console.error('Invalid invoice:', invoice);
           return;
@@ -177,7 +177,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
 
         // Get subscription details
         const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-
+        
         // Update subscription status with retry logic
         await retryOperation(async () => {
           const { error: subscriptionError } = await supabase
@@ -196,7 +196,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
             console.error('Error updating subscription:', subscriptionError);
             throw subscriptionError;
           }
-
+          
           console.log('Successfully updated subscription for user:', userId);
         });
 
@@ -226,13 +226,13 @@ export default async function handler(request: Request) {
   // Only allow POST requests
   if (request.method !== 'POST') {
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         error: {
           message: 'Method not allowed. This endpoint only accepts POST requests.',
           type: 'invalid_request_error'
         }
-      }),
-      {
+      }), 
+      { 
         status: 405,
         headers: {
           'Allow': 'POST',
@@ -269,13 +269,13 @@ export default async function handler(request: Request) {
 
   if (!sig) {
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         error: {
           message: 'No Stripe signature found in request headers',
           type: 'invalid_request_error'
         }
-      }),
-      {
+      }), 
+      { 
         status: 400,
         headers: {
           'Content-Type': 'application/json',
@@ -297,10 +297,10 @@ export default async function handler(request: Request) {
     await handleStripeWebhook(event);
 
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         received: true,
         type: event.type
-      }),
+      }), 
       {
         status: 200,
         headers: {

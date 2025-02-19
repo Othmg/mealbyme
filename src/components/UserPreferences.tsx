@@ -24,6 +24,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -136,8 +137,39 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
     }));
   };
 
-  const handleManageSubscription = () => {
-    window.location.href = 'https://billing.stripe.com/p/login/cN201l98Iadzg12aEE';
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to create portal session');
+      }
+
+      const { url } = await response.json();
+      if (!url) {
+        throw new Error('No portal URL received');
+      }
+
+      window.location.href = url;
+    } catch (err) {
+      console.error('Error accessing customer portal:', err);
+      setError(err instanceof Error ? err.message : 'Failed to access customer portal');
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -169,9 +201,10 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                   </div>
                   <button
                     onClick={handleManageSubscription}
-                    className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                    disabled={portalLoading}
+                    className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
-                    Manage Subscription
+                    {portalLoading ? 'Loading...' : 'Manage Subscription'}
                   </button>
                 </div>
                 <p className="text-sm opacity-90">

@@ -18,13 +18,34 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.user_metadata?.stripe_customer_id) {
-        throw new Error('No Stripe customer ID found. Please try signing out and back in.');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      if (!session) {
+        throw new Error('No active session found. Please sign in again.');
       }
 
-      // Use the existing customer ID from user metadata
-      window.location.href = `https://buy.stripe.com/eVag2Nez88e9bFmbII?client_reference_id=${user.id}&prefilled_email=${user.email}&customer=${user.user_metadata.stripe_customer_id}`;
+      // Create checkout session
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+      if (!url) {
+        throw new Error('No checkout URL received');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
     } catch (err) {
       console.error('Error initiating subscription:', err);
       setError(err instanceof Error ? err.message : 'Failed to start subscription process');

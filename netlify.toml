@@ -18,6 +18,14 @@
   path = "/api/create-customer"
   function = "create-customer"
 
+[[edge_functions]]
+  path = "/api/create-checkout-session"
+  function = "create-checkout-session"
+
+[[edge_functions]]
+  path = "/api/create-portal-session"
+  function = "create-portal-session"
+
 [[redirects]]
   from = "/webhook"
   to = "/.netlify/edge-functions/webhook"
@@ -27,6 +35,18 @@
 [[redirects]]
   from = "/api/create-customer"
   to = "/.netlify/edge-functions/create-customer"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/create-checkout-session"
+  to = "/.netlify/edge-functions/create-checkout-session"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/create-portal-session"
+  to = "/.netlify/edge-functions/create-portal-session"
   status = 200
   force = true
 
@@ -43,8 +63,22 @@
     Access-Control-Allow-Headers = "Content-Type, stripe-signature"
 
 [[headers]]
-  for = "/create-customer"
+  for = "/api/create-customer"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/api/create-checkout-session"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+[[headers]]
+  for = "/api/create-portal-session"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"

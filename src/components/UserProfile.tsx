@@ -7,6 +7,8 @@ export function UserProfile() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadUserProfile();
@@ -30,6 +32,43 @@ export function UserProfile() {
       console.error('Error loading user profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    setError(null);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to create portal session');
+      }
+
+      const { url } = await response.json();
+      if (!url) {
+        throw new Error('No portal URL received');
+      }
+
+      window.location.href = url;
+    } catch (err) {
+      console.error('Error accessing customer portal:', err);
+      setError(err instanceof Error ? err.message : 'Failed to access customer portal');
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -67,6 +106,12 @@ export function UserProfile() {
             </div>
           </div>
 
+          {error && (
+            <div className="mb-6 text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              {error}
+            </div>
+          )}
+
           {isSubscribed ? (
             <div className="bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] text-white p-4 rounded-lg mb-6">
               <div className="flex items-center justify-between">
@@ -75,10 +120,18 @@ export function UserProfile() {
                   <span className="font-semibold">Premium Member</span>
                 </div>
                 <button
-                  onClick={() => window.location.href = 'https://billing.stripe.com/p/login/cN201l98Iadzg12aEE'}
-                  className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                  onClick={handleManageSubscription}
+                  disabled={portalLoading}
+                  className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
                 >
-                  Manage Subscription
+                  {portalLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    'Manage Subscription'
+                  )}
                 </button>
               </div>
             </div>
