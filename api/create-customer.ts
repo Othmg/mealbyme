@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 
-// Validate the environment variable immediately
+// Validate and initialize the Stripe secret key
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 if (!stripeSecretKey) {
   console.error('STRIPE_SECRET_KEY is not set in the environment.');
@@ -12,7 +12,6 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 
 export default async function handler(request: Request) {
-  // Log basic request info
   console.log('Received request:', {
     method: request.method,
     url: request.url,
@@ -52,7 +51,7 @@ export default async function handler(request: Request) {
     );
   }
 
-  // Parse JSON body with detailed logging
+  // Parse the JSON body with detailed logging
   let payload: { email?: string };
   try {
     payload = await request.json();
@@ -96,7 +95,7 @@ export default async function handler(request: Request) {
     );
   }
 
-  // Attempt to list existing customers for the provided email
+  // List existing customers for the provided email
   let existingCustomers;
   try {
     console.log(`Listing customers for email: ${email}`);
@@ -141,8 +140,8 @@ export default async function handler(request: Request) {
           created_at: new Date().toISOString(),
         },
       });
+      console.log('Stripe response for customer creation:', JSON.stringify(customer));
       customerId = customer.id;
-      console.log('New customer created:', JSON.stringify(customer));
     } catch (createError) {
       console.error('Error creating new customer for email:', email, createError);
       return new Response(
@@ -163,7 +162,6 @@ export default async function handler(request: Request) {
     }
   }
 
-  // Return the successful response with detailed logging
   const responseBody = { customerId, isExisting };
   console.log('Returning successful response:', responseBody);
   return new Response(JSON.stringify(responseBody), {
