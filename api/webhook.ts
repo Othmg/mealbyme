@@ -43,7 +43,7 @@ async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<str
     const { data: users, error } = await supabase
       .from('auth.users')
       .select('id')
-      .eq('raw_app_meta_data->stripe_customer_id', stripeCustomerId)
+      .eq('raw_app_meta_data->>stripe_customer_id', stripeCustomerId)
       .maybeSingle();
 
     if (error) {
