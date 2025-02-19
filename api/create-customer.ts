@@ -9,6 +9,7 @@ if (!stripeSecretKey) {
 
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
 });
 
 export default async function handler(request: Request) {
