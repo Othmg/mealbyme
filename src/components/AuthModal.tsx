@@ -82,14 +82,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         if (stripeCustomerId) {
           console.log('Updating user metadata with Stripe ID:', stripeCustomerId);
-          const { user, error: updateError } = await supabase.auth.update({
+          // Use updateUser which is available in Supabase v1
+          const { error: updateError } = await supabase.auth.updateUser({
             data: { stripe_customer_id: stripeCustomerId },
           });
 
           if (updateError) {
             console.error('Error updating user metadata with Stripe ID:', updateError);
           } else {
-            console.log('Successfully updated user metadata:', user);
+            console.log('Successfully updated user metadata with Stripe ID');
           }
         } else {
           console.error('Failed to create Stripe customer - no customer ID returned');
@@ -125,7 +126,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700" disabled={loading}>
           <X className="w-5 h-5" />
         </button>
-
         <h2 className="text-2xl font-bold mb-6">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
 
         {isSignUp && !signUpSuccess && (
@@ -183,7 +183,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 disabled={loading}
               />
             </div>
-
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -204,13 +203,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </p>
               )}
             </div>
-
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-100">
                 {error}
               </div>
             )}
-
             <button
               type="submit"
               disabled={loading}
@@ -225,7 +222,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 isSignUp ? 'Create Account' : 'Sign In'
               )}
             </button>
-
             <div className="text-sm text-center">
               <button
                 type="button"
