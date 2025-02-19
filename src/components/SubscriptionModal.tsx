@@ -1,5 +1,6 @@
-import React from 'react';
-import { X, Crown, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Crown, Check, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -7,10 +8,29 @@ interface SubscriptionModalProps {
 }
 
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
-  const handleSubscribe = () => {
-    window.location.href = 'https://buy.stripe.com/eVag2Nez88e9bFmbII';
+  const handleSubscribe = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.user_metadata?.stripe_customer_id) {
+        throw new Error('No Stripe customer ID found. Please try signing out and back in.');
+      }
+
+      // Use the existing customer ID from user metadata
+      window.location.href = `https://buy.stripe.com/eVag2Nez88e9bFmbII?client_reference_id=${user.id}&prefilled_email=${user.email}&customer=${user.user_metadata.stripe_customer_id}`;
+    } catch (err) {
+      console.error('Error initiating subscription:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start subscription process');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,6 +39,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          disabled={loading}
         >
           <X className="w-5 h-5" />
         </button>
@@ -53,6 +74,12 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           </ul>
         </div>
 
+        {error && (
+          <div className="mb-6 text-red-600 text-sm bg-red-50 p-3 rounded-md">
+            {error}
+          </div>
+        )}
+
         <div className="text-center mb-6">
           <div className="mb-2">
             <span className="text-3xl font-bold">$9.99</span>
@@ -63,9 +90,20 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
         <button
           onClick={handleSubscribe}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B]"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-50"
         >
-          Subscribe Now
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Please wait...</span>
+            </>
+          ) : (
+            <>
+              <Crown className="w-5 h-5" />
+              <span>Subscribe Now</span>
+            </>
+          )}
         </button>
       </div>
     </div>
