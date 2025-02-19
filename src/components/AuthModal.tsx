@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, BookmarkPlus, UtensilsCrossed, ChefHat } from 'lucide-react';
+import { X, BookmarkPlus, UtensilsCrossed, ChefHat, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface AuthModalProps {
@@ -17,32 +17,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   if (!isOpen) return null;
 
-  const checkEmailExists = async (email: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
-
-      if (!error) {
-        return true;
-      }
-
-      if (error.message.includes('Email not confirmed') ||
-        error.message.includes('User already registered')) {
-        return true;
-      }
-
-      return false;
-    } catch {
-      return false;
-    }
-  };
-
   const createStripeCustomer = async (email: string) => {
     try {
+      console.log('Creating Stripe customer for:', email);
+      
       const response = await fetch('/.netlify/edge-functions/create-customer', {
         method: 'POST',
         headers: {
@@ -51,15 +29,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to create Stripe customer');
+        console.error('Error creating Stripe customer:', {
+          status: response.status,
+          data
+        });
+        return null;
       }
 
-      const { customerId } = await response.json();
-      return customerId;
+      console.log('Stripe customer created:', data);
+      return data.customerId || null;
     } catch (err) {
       console.error('Error creating Stripe customer:', err);
-      // Don't throw - we still want to complete signup even if Stripe fails
       return null;
     }
   };
@@ -72,39 +55,70 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (isSignUp) {
-        const emailExists = await checkEmailExists(email);
-        if (emailExists) {
-          setError('An account with this email already exists. Please sign in instead.');
-          setLoading(false);
-          return;
-        }
-
-        // Create Stripe customer first
-        const stripeCustomerId = await createStripeCustomer(email);
-
-        // Sign up the user with the Stripe customer ID in metadata
-        const { error } = await supabase.auth.signUp({
+        // Proceed with sign up and let Supabase handle the uniqueness check
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: {
-              stripe_customer_id: stripeCustomerId
-            }
+            emailRedirectTo: window.location.origin,
           }
         });
 
-        if (error) throw error;
+        if (signUpError) {
+          // Handle specific error cases
+          if (signUpError.message?.includes('Password should be at least')) {
+            throw new Error('Password must be at least 6 characters long');
+          }
+          if (signUpError.message?.includes('User already registered')) {
+            throw new Error('An account with this email already exists. Please sign in instead.');
+          }
+          throw signUpError;
+        }
+
+        if (!data.user) {
+          throw new Error('Failed to create account. Please try again.');
+        }
+
+        // Create Stripe customer and update user metadata
+        console.log('Creating Stripe customer after successful signup');
+        const stripeCustomerId = await createStripeCustomer(email);
+        
+        if (stripeCustomerId) {
+          console.log('Updating user metadata with Stripe ID:', stripeCustomerId);
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: { stripe_customer_id: stripeCustomerId }
+          });
+
+          if (updateError) {
+            console.error('Error updating user with Stripe ID:', updateError);
+          } else {
+            console.log('Successfully updated user metadata with Stripe ID');
+          }
+        } else {
+          console.error('Failed to create Stripe customer - no customer ID returned');
+        }
+
         setSignUpSuccess(true);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // Handle sign in
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+
+        if (signInError) {
+          if (signInError.message?.includes('Invalid login credentials')) {
+            throw new Error('Invalid email or password');
+          }
+          throw signInError;
+        }
+
         onClose();
       }
     } catch (err) {
+      console.error('Auth error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setSignUpSuccess(false);
     } finally {
       setLoading(false);
     }
@@ -116,6 +130,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          disabled={loading}
         >
           <X className="w-5 h-5" />
         </button>
@@ -149,16 +164,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <ChefHat className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Check your email</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Account Created!</h3>
             <p className="text-gray-600 mb-4">
-              We've sent you an email with a link to confirm your account.
-              Please check your inbox and click the link to complete the sign-up process.
+              Please check your email to confirm your account. Once confirmed, you can sign in with your email and password.
             </p>
             <button
-              onClick={onClose}
+              onClick={() => {
+                setIsSignUp(false);
+                setSignUpSuccess(false);
+              }}
               className="text-[#FF6B6B] hover:text-[#FF5555] font-medium"
             >
-              Close this window
+              Sign in now
             </button>
           </div>
         ) : (
@@ -174,6 +191,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -188,19 +206,35 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 required
+                minLength={6}
+                disabled={loading}
               />
+              {isSignUp && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Password must be at least 6 characters long
+                </p>
+              )}
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm">{error}</div>
+              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-100">
+                {error}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-50"
+              className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Please wait...</span>
+                </>
+              ) : (
+                isSignUp ? 'Create Account' : 'Sign In'
+              )}
             </button>
 
             <div className="text-sm text-center">
@@ -212,6 +246,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   setSignUpSuccess(false);
                 }}
                 className="text-[#FF6B6B] hover:text-[#FF5555]"
+                disabled={loading}
               >
                 {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
               </button>
