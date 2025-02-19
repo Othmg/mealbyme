@@ -40,20 +40,19 @@ async function findUserByStripeCustomerId(stripeCustomerId: string): Promise<str
   try {
     console.log('Looking up user by Stripe customer ID:', stripeCustomerId);
 
-    const { data: users, error } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('raw_app_meta_data->>stripe_customer_id', stripeCustomerId)
-      .maybeSingle();
+    // Use rpc to query auth.users table
+    const { data: users, error } = await supabase.rpc('get_user_by_stripe_customer_id', {
+      p_stripe_customer_id: stripeCustomerId
+    });
 
     if (error) {
       console.error('Error looking up user by Stripe customer ID:', error);
       return null;
     }
 
-    if (users) {
+    if (users && users.length > 0) {
       console.log('Found user via Stripe customer ID lookup');
-      return users.id;
+      return users[0].id;
     }
 
     console.error('No user found for Stripe customer ID:', stripeCustomerId);
