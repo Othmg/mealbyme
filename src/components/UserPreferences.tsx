@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, handleDatabaseError } from '../lib/supabase';
-import { Save, X, Crown } from 'lucide-react';
+import { Save, X, Crown, Loader2 } from 'lucide-react';
 
 interface UserPreferencesProps {
   isOpen: boolean;
@@ -73,7 +73,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         setError(errorMessage);
         return;
       }
-      
+
       if (data) {
         setPreferences({
           dietary_restrictions: data.dietary_restrictions || [],
@@ -116,7 +116,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         );
 
       if (error) throw error;
-      
+
       onUpdate();
       onClose();
     } catch (err) {
@@ -139,6 +139,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
+    setError(null);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -148,14 +150,14 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-        },
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create portal session');
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to create portal session');
       }
 
       const { url } = await response.json();
@@ -202,9 +204,16 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                   <button
                     onClick={handleManageSubscription}
                     disabled={portalLoading}
-                    className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    className="px-3 py-1 bg-white text-[#FF6B6B] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
-                    {portalLoading ? 'Loading...' : 'Manage Subscription'}
+                    {portalLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      'Manage Subscription'
+                    )}
                   </button>
                 </div>
                 <p className="text-sm opacity-90">
