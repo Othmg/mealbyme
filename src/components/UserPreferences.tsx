@@ -35,16 +35,27 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
 
   const loadSubscriptionStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsSubscribed(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('status')
-        .eq('user_id', user.id)
+        .select('status, stripe_customer_id')
+        .eq('user_id', session.user.id)
         .maybeSingle();
 
       if (error) throw error;
+
+      // Verify Stripe customer ID exists
+      if (!data?.stripe_customer_id && data?.status === 'active') {
+        console.error('Active subscription found but no Stripe customer ID');
+        setIsSubscribed(false);
+        return;
+      }
+
       setIsSubscribed(data?.status === 'active');
     } catch (err) {
       const { error } = handleDatabaseError(err);
@@ -55,8 +66,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
   const loadPreferences = async () => {
     setError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         setError('Please sign in to access your preferences');
         setLoading(false);
         return;
@@ -65,7 +76,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
       const { data, error } = await supabase
         .from('user_preferences')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', session.user.id)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -94,8 +105,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         setError('Please sign in to save preferences');
         return;
       }
@@ -104,7 +115,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         .from('user_preferences')
         .upsert(
           {
-            user_id: user.id,
+            user_id: session.user.id,
             dietary_restrictions: preferences.dietary_restrictions,
             favorite_ingredients: preferences.favorite_ingredients,
             disliked_ingredients: preferences.disliked_ingredients,
@@ -147,12 +158,26 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         throw new Error('No active session');
       }
 
+      // Verify Stripe customer ID exists
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('stripe_customer_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (!subscription?.stripe_customer_id) {
+        throw new Error('No Stripe customer ID found. Please contact support.');
+      }
+
+      const origin = window.location.origin;
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Origin': origin
+        },
+        body: JSON.stringify({ returnUrl: `${origin}/profile` })
       });
 
       if (!response.ok) {
