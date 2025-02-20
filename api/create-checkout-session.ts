@@ -59,7 +59,7 @@ export default async function handler(request: Request) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
+    
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }

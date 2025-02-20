@@ -48,14 +48,9 @@ export function SubscriptionPage() {
                 <div className="flex-shrink-0 w-6 h-6 bg-[#FF6B6B] rounded-full flex items-center justify-center">
                   <Check className="w-4 h-4 text-white" />
                 </div>
-                <span>Advanced dietary preferences</span>
+                <span>Advanced nutritional information</span>
               </li>
-              <li className="flex items-center gap-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-[#FF6B6B] rounded-full flex items-center justify-center">
-                  <Check className="w-4 h-4 text-white" />
-                </div>
-                <span>Weekly meal planning</span>
-              </li>
+              
             </ul>
           </div>
 

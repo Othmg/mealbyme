@@ -82,16 +82,13 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             </li>
             <li className="flex items-center gap-2">
               <Check className="w-5 h-5 text-[#FF6B6B]" />
-              <span>Save unlimited favorite recipes</span>
+              <span>Save your favorite recipes</span>
             </li>
             <li className="flex items-center gap-2">
               <Check className="w-5 h-5 text-[#FF6B6B]" />
-              <span>Advanced dietary preferences</span>
+              <span>Advanced nutritional information</span>
             </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-5 h-5 text-[#FF6B6B]" />
-              <span>Weekly meal planning</span>
-            </li>
+
           </ul>
         </div>
 
