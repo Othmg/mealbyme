@@ -43,19 +43,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
 
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('status, stripe_customer_id')
+        .select('status')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
       if (error) throw error;
-
-      // Verify Stripe customer ID exists
-      if (!data?.stripe_customer_id && data?.status === 'active') {
-        console.error('Active subscription found but no Stripe customer ID');
-        setIsSubscribed(false);
-        return;
-      }
-
       setIsSubscribed(data?.status === 'active');
     } catch (err) {
       const { error } = handleDatabaseError(err);
@@ -158,15 +150,20 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
         throw new Error('No active session');
       }
 
-      // Verify Stripe customer ID exists
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('stripe_customer_id')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
+      // Get Stripe customer ID from user metadata first
+      const stripeCustomerId = session.user.user_metadata?.stripe_customer_id;
 
-      if (!subscription?.stripe_customer_id) {
-        throw new Error('No Stripe customer ID found. Please contact support.');
+      if (!stripeCustomerId) {
+        // Fallback to subscriptions table if not in metadata
+        const { data: subscription } = await supabase
+          .from('subscriptions')
+          .select('stripe_customer_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (!subscription?.stripe_customer_id) {
+          throw new Error('No Stripe customer ID found. Please contact support.');
+        }
       }
 
       const origin = window.location.origin;
