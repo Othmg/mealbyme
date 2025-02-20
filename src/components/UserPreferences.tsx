@@ -167,7 +167,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
       }
 
       const origin = window.location.origin;
-      const response = await fetch('/api/create-portal-session', {
+      const response = await fetch('/.netlify/edge-functions/create-portal-session', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
