@@ -19,7 +19,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
-      const response = await fetch('/.netlify/edge-functions/create-customer', {
+      const response = await fetch('/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
