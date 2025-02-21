@@ -19,7 +19,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const createStripeCustomer = async (email: string): Promise<string | null> => {
     try {
-      const response = await fetch('/api/create-customer', {
+      const response = await fetch('/.netlify/edge-functions/create-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     if (!validateInput()) {
       return;
     }
