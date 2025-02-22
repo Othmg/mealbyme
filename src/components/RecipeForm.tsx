@@ -177,8 +177,8 @@ Please provide a detailed recipe in JSON format with the following structure:
     "fats": "amount in grams",
     "fiber": "amount in grams",
     "sodium": "amount in mg",
-    "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
-    "allergens": ["dairy", "gluten", "nuts", etc]
+    "dietaryTags": [],
+    "allergens": []
   },
   "fitnessGoal": "${formData.fitnessGoal || ''}",
   "mealType": "${formData.mealType || ''}"
@@ -403,8 +403,8 @@ IMPORTANT:
                         fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
                       }))}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700'
+                        ? 'bg-[#FF6B6B] text-white'
+                        : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {goal.label}
@@ -429,8 +429,8 @@ IMPORTANT:
                           : [...prev.dietaryNeeds, need]
                       }))}
                       className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700'
+                        ? 'bg-[#FF6B6B] text-white'
+                        : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {need}
@@ -453,8 +453,8 @@ IMPORTANT:
                         mealType: prev.mealType === type ? null : type
                       }))}
                       className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${formData.mealType === type
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700'
+                        ? 'bg-[#FF6B6B] text-white'
+                        : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {type}
