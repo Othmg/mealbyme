@@ -27,11 +27,11 @@
   function = "create-portal-session"
 
 [[edge_functions]]
-  path = "/create-meal-plan"
+  path = "/api/create-meal-plan"
   function = "create-meal-plan"
 
 [[edge_functions]]
-  path = "/get-meal-plan"
+  path = "/api/get-meal-plan"
   function = "get-meal-plan"
 
 [[redirects]]
@@ -59,13 +59,13 @@
   force = true
 
 [[redirects]]
-  from = "/create-meal-plan"
+  from = "/api/create-meal-plan"
   to = "/.netlify/edge-functions/create-meal-plan"
   status = 200
   force = true
 
 [[redirects]]
-  from = "/get-meal-plan"
+  from = "/api/get-meal-plan"
   to = "/.netlify/edge-functions/get-meal-plan"
   status = 200
   force = true
@@ -104,14 +104,14 @@
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
 [[headers]]
-  for = "/create-meal-plan"
+  for = "/api/create-meal-plan"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
 [[headers]]
-  for = "/get-meal-plan"
+  for = "/api/get-meal-plan"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, OPTIONS"

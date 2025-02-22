@@ -104,7 +104,7 @@ export function RecipeForm({
 
   const validateRecipeData = (data: any): data is Recipe => {
     if (!data || typeof data !== 'object') return false;
-
+    
     const requiredFields = ['title', 'ingredients', 'steps', 'cookingTime', 'servings', 'difficulty'];
     for (const field of requiredFields) {
       if (!(field in data)) return false;
@@ -127,7 +127,7 @@ export function RecipeForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!isSubscribed && dailyGenerations >= 5) {
       onShowSubscriptionModal();
       return;
@@ -136,7 +136,7 @@ export function RecipeForm({
     setLoading(true);
 
     try {
-      const dietaryRestrictionsText = dietaryRestrictions.length > 0
+      const dietaryRestrictionsText = dietaryRestrictions.length > 0 
         ? `\nDietary restrictions: ${dietaryRestrictions.join(', ')}`
         : '';
 
@@ -177,8 +177,8 @@ Please provide a detailed recipe in JSON format with the following structure:
     "fats": "amount in grams",
     "fiber": "amount in grams",
     "sodium": "amount in mg",
-    "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
-    "allergens": ["dairy", "gluten", "nuts", etc]
+    "dietaryTags": [],
+    "allergens": []
   },
   "fitnessGoal": "${formData.fitnessGoal || ''}",
   "mealType": "${formData.mealType || ''}"
@@ -191,7 +191,7 @@ IMPORTANT:
 - Ensure macronutrients align with the specified fitness goal and meal type if provided.`;
 
       const thread = await openai.beta.threads.create();
-
+      
       await openai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: prompt
@@ -217,11 +217,11 @@ IMPORTANT:
       if (response?.type === 'text' && response.text) {
         try {
           const recipeData = JSON.parse(response.text.value);
-
+          
           if (!validateRecipeData(recipeData)) {
             throw new Error('Invalid recipe format received from AI');
           }
-
+          
           onRecipeGenerated(recipeData);
           onIncrementGenerations();
         } catch (parseError) {
@@ -402,10 +402,11 @@ IMPORTANT:
                         ...prev,
                         fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
                       }))}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        formData.fitnessGoal === goal.value
                           ? 'bg-[#FF6B6B] text-white'
                           : 'bg-gray-100 text-gray-700'
-                        }`}
+                      }`}
                     >
                       {goal.label}
                     </button>
@@ -428,10 +429,11 @@ IMPORTANT:
                           ? prev.dietaryNeeds.filter(n => n !== need)
                           : [...prev.dietaryNeeds, need]
                       }))}
-                      className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
+                      className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${
+                        formData.dietaryNeeds.includes(need)
                           ? 'bg-[#FF6B6B] text-white'
                           : 'bg-gray-100 text-gray-700'
-                        }`}
+                      }`}
                     >
                       {need}
                     </button>
@@ -452,10 +454,11 @@ IMPORTANT:
                         ...prev,
                         mealType: prev.mealType === type ? null : type
                       }))}
-                      className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${formData.mealType === type
+                      className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${
+                        formData.mealType === type
                           ? 'bg-[#FF6B6B] text-white'
                           : 'bg-gray-100 text-gray-700'
-                        }`}
+                      }`}
                     >
                       {type}
                     </button>
@@ -483,14 +486,14 @@ IMPORTANT:
       <button
         type="submit"
         disabled={loading || !formData.desiredDish.trim() || (!isSubscribed && dailyGenerations >= 5)}
-        className="w-full flex justify-center py-2 sm:py-3 px-4 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-200"
+        className="w-full flex justify-center py-2 sm:py-3 px-4 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
         {loading ? 'Creating Your Recipe...' : 'Create My Recipe'}
       </button>
 
       {!isSubscribed && dailyGenerations >= 5 && (
         <p className="text-sm text-center text-gray-600">
-          You've reached your daily limit.
+          You've reached your daily limit. 
           <button
             type="button"
             onClick={onShowSubscriptionModal}

@@ -1,3 +1,4 @@
+# Copy content from api/get-meal-plan.ts
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
