@@ -6,7 +6,7 @@ declare global {
   var global: any;
 }
 
-if (typeof global === 'undefined') {
+if (!('global' in globalThis)) {
   (globalThis as any).global = globalThis;
 }
 
