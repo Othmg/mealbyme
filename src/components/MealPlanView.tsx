@@ -77,6 +77,12 @@ export function MealPlanView() {
         throw new Error('Failed to swap meal');
       }
 
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      // Reload the meal plan to show the updated recipe
       await loadMealPlan();
     } catch (err) {
       console.error('Error swapping meal:', err);

@@ -31,42 +31,6 @@ export function NewMealPlan() {
     startDate: new Date().toISOString().split('T')[0]
   });
 
-  const pollMealPlanStatus = async (threadId: string, runId: string, mealPlanId: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
-
-      const response = await fetch(`/api/get-meal-plan?threadId=${threadId}&runId=${runId}&mealPlanId=${mealPlanId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to check meal plan status');
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-
-      if (response.status === 200) {
-        // Meal plan is ready
-        navigate(`/meal-planner/plans/${mealPlanId}`);
-        return;
-      }
-
-      // Continue polling
-      setTimeout(() => pollMealPlanStatus(threadId, runId, mealPlanId), 2000);
-    } catch (err) {
-      console.error('Error polling meal plan status:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate meal plan');
-      setLoading(false);
-    }
-  };
-
   const handleGenerateMealPlan = async () => {
     setLoading(true);
     setError(null);
@@ -100,8 +64,8 @@ export function NewMealPlan() {
         throw new Error(data.error.message);
       }
 
-      // Start polling for completion
-      pollMealPlanStatus(data.threadId, data.runId, data.mealPlanId);
+      // Navigate to the meal plan view
+      navigate(`/meal-planner/plans/${data.mealPlanId}`);
     } catch (err) {
       console.error('Error generating meal plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate meal plan');
@@ -199,8 +163,8 @@ export function NewMealPlan() {
                           fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
                         }))}
                         className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-[#FF6B6B] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                       >
                         {goal.label}
@@ -225,8 +189,8 @@ export function NewMealPlan() {
                             : [...prev.dietaryNeeds, need]
                         }))}
                         className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-[#FF6B6B] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                       >
                         {need}
