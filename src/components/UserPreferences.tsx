@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, handleDatabaseError } from '../lib/supabase';
-import { Save, X, Crown, Loader2 } from 'lucide-react';
+import { Save, X, Crown, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface UserPreferencesProps {
   isOpen: boolean;
@@ -12,19 +12,34 @@ interface Preferences {
   dietary_restrictions: string[];
   favorite_ingredients: string[];
   disliked_ingredients: string[];
+  fitness_goal: string | null;
+  dietary_needs: string[];
+  preferred_meal_types: string[];
 }
+
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+const DIETARY_NEEDS = ['Diabetic-friendly', 'gluten-free', 'digestive health'];
+const FITNESS_GOALS = [
+  { value: 'weight_loss', label: 'Weight Loss' },
+  { value: 'muscle_gain', label: 'Muscle Gain' },
+  { value: 'maintenance', label: 'Maintenance' }
+];
 
 export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesProps) {
   const [preferences, setPreferences] = useState<Preferences>({
     dietary_restrictions: [],
     favorite_ingredients: [],
     disliked_ingredients: [],
+    fitness_goal: null,
+    dietary_needs: [],
+    preferred_meal_types: []
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -82,6 +97,9 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
           dietary_restrictions: data.dietary_restrictions || [],
           favorite_ingredients: data.favorite_ingredients || [],
           disliked_ingredients: data.disliked_ingredients || [],
+          fitness_goal: data.fitness_goal || null,
+          dietary_needs: data.dietary_needs || [],
+          preferred_meal_types: data.preferred_meal_types || []
         });
       }
     } catch (err) {
@@ -111,6 +129,9 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
             dietary_restrictions: preferences.dietary_restrictions,
             favorite_ingredients: preferences.favorite_ingredients,
             disliked_ingredients: preferences.disliked_ingredients,
+            fitness_goal: preferences.fitness_goal,
+            dietary_needs: preferences.dietary_needs,
+            preferred_meal_types: preferences.preferred_meal_types,
             updated_at: new Date().toISOString()
           },
           {
@@ -140,6 +161,15 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
     }));
   };
 
+  const handleArrayToggle = (field: keyof Preferences, value: string) => {
+    setPreferences(prev => ({
+      ...prev,
+      [field]: prev[field].includes(value)
+        ? prev[field].filter(item => item !== value)
+        : [...prev[field], value]
+    }));
+  };
+
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     setError(null);
@@ -148,22 +178,6 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
-      }
-
-      // Get Stripe customer ID from user metadata first
-      const stripeCustomerId = session.user.user_metadata?.stripe_customer_id;
-
-      if (!stripeCustomerId) {
-        // Fallback to subscriptions table if not in metadata
-        const { data: subscription } = await supabase
-          .from('subscriptions')
-          .select('stripe_customer_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (!subscription?.stripe_customer_id) {
-          throw new Error('No Stripe customer ID found. Please contact support.');
-        }
       }
 
       const origin = window.location.origin;
@@ -199,8 +213,8 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
@@ -282,6 +296,89 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <span className="font-medium">Advanced Customization</span>
+              {showAdvanced ? (
+                <ChevronUp className="w-5 h-5" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-4 pt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fitness Goal
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FITNESS_GOALS.map(goal => (
+                      <button
+                        key={goal.value}
+                        type="button"
+                        onClick={() => setPreferences(prev => ({
+                          ...prev,
+                          fitness_goal: prev.fitness_goal === goal.value ? null : goal.value
+                        }))}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${preferences.fitness_goal === goal.value
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                      >
+                        {goal.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dietary Needs
+                  </label>
+                  <div className="space-y-2">
+                    {DIETARY_NEEDS.map(need => (
+                      <button
+                        key={need}
+                        type="button"
+                        onClick={() => handleArrayToggle('dietary_needs', need)}
+                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${preferences.dietary_needs.includes(need)
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                      >
+                        {need}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Meal Types
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MEAL_TYPES.map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => handleArrayToggle('preferred_meal_types', type)}
+                        className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${preferences.preferred_meal_types.includes(type)
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={handleSave}
