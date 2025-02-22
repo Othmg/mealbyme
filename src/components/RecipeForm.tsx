@@ -465,7 +465,7 @@ IMPORTANT:
             </div>
 
             {!user && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 backdrop-blur-[2px] rounded-md">
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-30 backdrop-blur-[2px] rounded-md">
                 <button
                   type="button"
                   onClick={onShowAuthModal}
