@@ -10,10 +10,6 @@ if (typeof global === 'undefined') {
   (globalThis as any).global = globalThis;
 }
 
-const openai = new OpenAI({
-  apiKey: Deno.env.get('OPENAI_API_KEY') || '',
-});
-
 const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
@@ -74,100 +70,35 @@ export default async function handler(request: Request) {
 
     // Get query parameters
     const url = new URL(request.url);
-    const threadId = url.searchParams.get('threadId');
-    const runId = url.searchParams.get('runId');
     const mealPlanId = url.searchParams.get('mealPlanId');
 
-    if (!threadId || !runId || !mealPlanId) {
+    if (!mealPlanId) {
       throw new Error('Missing required parameters');
     }
 
-    // Check run status
-    const runStatus = await openai.beta.threads.runs.retrieve(threadId, runId);
+    // Return the complete meal plan
+    const { data: completeMealPlan, error: fetchError } = await supabase
+      .from('meal_plans')
+      .select(`
+        *,
+        meal_plan_items (
+          meal_type,
+          day_number,
+          meal_plan_recipes (*)
+        ),
+        meal_plan_groceries (
+          items
+        )
+      `)
+      .eq('id', mealPlanId)
+      .single();
 
-    if (runStatus.status === 'completed') {
-      const messages = await openai.beta.threads.messages.list(threadId);
-      const response = messages.data[0].content[0];
+    if (fetchError) throw fetchError;
 
-      if (response?.type === 'text') {
-        const mealPlanData = JSON.parse(response.text.value);
-
-        // Store recipes and create meal plan items
-        for (const day of mealPlanData.days) {
-          for (const [mealType, recipe] of Object.entries(day.meals)) {
-            // Store recipe
-            const { data: recipeData, error: recipeError } = await supabase
-              .from('meal_plan_recipes')
-              .insert(recipe)
-              .select()
-              .single();
-
-            if (recipeError) throw recipeError;
-
-            // Create meal plan item
-            const { error: itemError } = await supabase
-              .from('meal_plan_items')
-              .insert({
-                meal_plan_id: mealPlanId,
-                meal_type: mealType,
-                day_number: day.dayNumber,
-                recipe_id: recipeData.id
-              });
-
-            if (itemError) throw itemError;
-          }
-        }
-
-        // Store grocery list
-        const { error: groceryError } = await supabase
-          .from('meal_plan_groceries')
-          .insert({
-            meal_plan_id: mealPlanId,
-            items: mealPlanData.groceryList
-          });
-
-        if (groceryError) throw groceryError;
-
-        // Return the complete meal plan
-        const { data: completeMealPlan, error: fetchError } = await supabase
-          .from('meal_plans')
-          .select(`
-            *,
-            meal_plan_items (
-              meal_type,
-              day_number,
-              meal_plan_recipes (*)
-            ),
-            meal_plan_groceries (
-              items
-            )
-          `)
-          .eq('id', mealPlanId)
-          .single();
-
-        if (fetchError) throw fetchError;
-
-        return new Response(
-          JSON.stringify(completeMealPlan),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            },
-          }
-        );
-      }
-    }
-
-    // If not completed, return status
     return new Response(
-      JSON.stringify({
-        status: runStatus.status,
-        mealPlanId
-      }),
+      JSON.stringify(completeMealPlan),
       {
-        status: 202,
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',

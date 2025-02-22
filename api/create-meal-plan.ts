@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+import openai from './openai';
 
 // Polyfill global for edge functions
 declare global {
@@ -9,10 +9,6 @@ declare global {
 if (typeof global === 'undefined') {
   (globalThis as any).global = globalThis;
 }
-
-const openai = new OpenAI({
-  apiKey: Deno.env.get('OPENAI_API_KEY') || '',
-});
 
 const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -24,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: any) {
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -81,9 +77,6 @@ export default async function handler(request: Request) {
       startDate,
       swapMeal
     } = await request.json();
-
-    // Create the meal plan request
-    const thread = await openai.beta.threads.create();
 
     const prompt = `Create a 3-day meal plan with the following requirements:
 
@@ -155,16 +148,7 @@ IMPORTANT:
 - Note which meals use shared ingredients
 - Include only the JSON response, no additional text`;
 
-    await openai.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: prompt
-    });
-
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: "asst_ibEMjWkHPWvppwWqe6mWjLo0",
-    });
-
-    // Store the run ID and thread ID for later retrieval
+    // Create meal plan in database first
     const { data: mealPlan, error: mealPlanError } = await supabase
       .from('meal_plans')
       .insert({
@@ -181,15 +165,22 @@ IMPORTANT:
 
     if (mealPlanError) throw mealPlanError;
 
+    // Call OpenAI
+    const response = await openai(new Request('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify({ prompt })
+    }), context);
+
+    const data = await response.json();
+
     return new Response(
       JSON.stringify({
         mealPlanId: mealPlan.id,
-        threadId: thread.id,
-        runId: run.id,
-        status: 'processing'
+        ...data
       }),
       {
-        status: 202,
+        status: response.status,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
