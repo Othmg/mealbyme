@@ -1,6 +1,9 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
+import { AuthModal } from './AuthModal';
+import { SubscriptionModal } from './SubscriptionModal';
+import { UserPreferences } from './UserPreferences';
 import { useAuth } from '../hooks/useAuth';
 
 export function Layout() {
@@ -21,6 +24,22 @@ export function Layout() {
                 />
             </div>
             <Outlet />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
+
+            <UserPreferences
+                isOpen={showPreferences}
+                onClose={() => setShowPreferences(false)}
+                onUpdate={() => { }} // Add empty function since we don't need to update anything in the layout
+            />
+
+            <SubscriptionModal
+                isOpen={showSubscriptionModal}
+                onClose={() => setShowSubscriptionModal(false)}
+            />
         </div>
     );
 }
