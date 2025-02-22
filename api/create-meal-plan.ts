@@ -1,4 +1,3 @@
-import '../netlify/edge-functions/globalPolyfill';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
