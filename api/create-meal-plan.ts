@@ -1,6 +1,14 @@
-import './globalPolyfill';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+
+// Polyfill global for edge functions
+declare global {
+  var global: any;
+}
+
+if (typeof global === 'undefined') {
+  (globalThis as any).global = globalThis;
+}
 
 const openai = new OpenAI({
   apiKey: Deno.env.get('OPENAI_API_KEY') || '',
