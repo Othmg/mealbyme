@@ -177,8 +177,8 @@ Please provide a detailed recipe in JSON format with the following structure:
     "fats": "amount in grams",
     "fiber": "amount in grams",
     "sodium": "amount in mg",
-    "dietaryTags": [],
-    "allergens": []
+    "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
+    "allergens": ["dairy", "gluten", "nuts", etc]
   },
   "fitnessGoal": "${formData.fitnessGoal || ''}",
   "mealType": "${formData.mealType || ''}"
@@ -468,7 +468,7 @@ IMPORTANT:
             </div>
 
             {!user && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-20 backdrop-blur-[2px] rounded-md">
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 backdrop-blur-[2px] rounded-md">
                 <button
                   type="button"
                   onClick={onShowAuthModal}

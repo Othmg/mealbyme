@@ -57,7 +57,7 @@ export function MealPlanView() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const response = await fetch('/api/create-meal-plan', {
+      const response = await fetch('/create-meal-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,12 +77,6 @@ export function MealPlanView() {
         throw new Error('Failed to swap meal');
       }
 
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-
-      // Reload the meal plan to show the updated recipe
       await loadMealPlan();
     } catch (err) {
       console.error('Error swapping meal:', err);
@@ -236,7 +230,7 @@ export function MealPlanView() {
                         </div>
                         {meal && (
                           <button
-                            onClick={() => navigate(`/recipe/${meal.recipe_id}`, {
+                            onClick={() => navigate(`/recipe/${meal.recipe_id}`, { 
                               state: { recipe: meal.meal_plan_recipes }
                             })}
                             className="w-full text-left group"

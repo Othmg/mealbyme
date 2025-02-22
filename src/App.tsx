@@ -5,6 +5,7 @@ import { AuthModal } from './components/AuthModal';
 import { UserPreferences } from './components/UserPreferences';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { Logo } from './components/Logo';
+import { Navbar } from './components/Navbar';
 import { RecipeForm } from './components/RecipeForm';
 import { RecipeDisplay } from './components/RecipeDisplay';
 import type { Recipe } from './types';
@@ -50,67 +51,77 @@ function App() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8 sm:mb-12">
-        <Logo />
-        <p className="text-base sm:text-lg text-gray-600">
-          Your personal AI chef for delicious, customized recipes
-        </p>
-      </div>
-
-      <RecipeForm
-        user={user}
-        isSubscribed={isSubscribed}
-        dailyGenerations={dailyGenerations}
-        dietaryRestrictions={dietaryRestrictions}
-        onRecipeGenerated={setRecipe}
-        onError={setError}
-        onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
-        onShowAuthModal={() => setShowAuthModal(true)}
-        onIncrementGenerations={incrementDailyGenerations}
-      />
-
-      {error && (
-        <div className="mb-6 sm:mb-8 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm sm:text-base">{error}</p>
-        </div>
-      )}
-
-      {recipe && (
-        <RecipeDisplay
-          recipe={recipe}
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <Navbar
           user={user}
           isSubscribed={isSubscribed}
+          onShowAuthModal={() => setShowAuthModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
-          onSaveSuccess={handleSaveSuccess}
+          onShowPreferences={() => setShowPreferences(true)}
         />
-      )}
 
-      {!recipe && !error && (
-        <div className="text-center text-gray-500 flex items-center justify-center gap-2">
-          <AlertCircle className="w-5 h-5" />
-          <span className="text-sm sm:text-base">
-            Your personalized recipe will appear here
-          </span>
+        <div className="text-center mb-8 sm:mb-12">
+          <Logo />
+          <p className="text-base sm:text-lg text-gray-600">
+            Your personal AI chef for delicious, customized recipes
+          </p>
         </div>
-      )}
 
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
+        <RecipeForm
+          user={user}
+          isSubscribed={isSubscribed}
+          dailyGenerations={dailyGenerations}
+          dietaryRestrictions={dietaryRestrictions}
+          onRecipeGenerated={setRecipe}
+          onError={setError}
+          onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
+          onShowAuthModal={() => setShowAuthModal(true)}
+          onIncrementGenerations={incrementDailyGenerations}
+        />
 
-      <UserPreferences
-        isOpen={showPreferences}
-        onClose={() => setShowPreferences(false)}
-        onUpdate={loadUserPreferences}
-      />
+        {error && (
+          <div className="mb-6 sm:mb-8 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm sm:text-base">{error}</p>
+          </div>
+        )}
 
-      <SubscriptionModal
-        isOpen={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
-      />
+        {recipe && (
+          <RecipeDisplay
+            recipe={recipe}
+            user={user}
+            isSubscribed={isSubscribed}
+            onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
+            onSaveSuccess={handleSaveSuccess}
+          />
+        )}
+
+        {!recipe && !error && (
+          <div className="text-center text-gray-500 flex items-center justify-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-sm sm:text-base">
+              Your personalized recipe will appear here
+            </span>
+          </div>
+        )}
+
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
+
+        <UserPreferences
+          isOpen={showPreferences}
+          onClose={() => setShowPreferences(false)}
+          onUpdate={loadUserPreferences}
+        />
+
+        <SubscriptionModal
+          isOpen={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+        />
+      </div>
     </div>
   );
 }

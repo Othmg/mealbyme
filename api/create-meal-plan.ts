@@ -1,14 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import openai from './openai';
+import OpenAI from 'openai';
 
-// Polyfill global for edge functions
-declare global {
-  var global: any;
-}
-
-if (typeof global === 'undefined') {
-  (globalThis as any).global = globalThis;
-}
+const openai = new OpenAI({
+  apiKey: Deno.env.get('OPENAI_API_KEY') || '',
+});
 
 const supabaseUrl = Deno.env.get('VITE_SUPABASE_URL') || '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -20,7 +15,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-export default async function handler(request: Request, context: any) {
+export default async function handler(request: Request) {
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -63,13 +58,13 @@ export default async function handler(request: Request, context: any) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
+    
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }
 
     // Parse request body
-    const {
+    const { 
       servings,
       dietaryNeeds,
       fitnessGoal,
@@ -78,6 +73,9 @@ export default async function handler(request: Request, context: any) {
       swapMeal
     } = await request.json();
 
+    // Create the meal plan request
+    const thread = await openai.beta.threads.create();
+    
     const prompt = `Create a 3-day meal plan with the following requirements:
 
 Preferences:
@@ -114,8 +112,8 @@ Please provide the meal plan in JSON format with the following structure:
             "fats": "amount in grams",
             "fiber": "amount in grams",
             "sodium": "amount in mg",
-            "dietaryTags": [],
-            "allergens": []
+            "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
+            "allergens": ["dairy", "gluten", "nuts", etc]
           }
         },
         "lunch": { ... },
@@ -148,7 +146,16 @@ IMPORTANT:
 - Note which meals use shared ingredients
 - Include only the JSON response, no additional text`;
 
-    // Create meal plan in database first
+    await openai.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: prompt
+    });
+
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: "asst_ibEMjWkHPWvppwWqe6mWjLo0",
+    });
+
+    // Store the run ID and thread ID for later retrieval
     const { data: mealPlan, error: mealPlanError } = await supabase
       .from('meal_plans')
       .insert({
@@ -165,22 +172,15 @@ IMPORTANT:
 
     if (mealPlanError) throw mealPlanError;
 
-    // Call OpenAI
-    const response = await openai(new Request('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: request.headers,
-      body: JSON.stringify({ prompt })
-    }), context);
-
-    const data = await response.json();
-
     return new Response(
       JSON.stringify({
         mealPlanId: mealPlan.id,
-        ...data
+        threadId: thread.id,
+        runId: run.id,
+        status: 'processing'
       }),
       {
-        status: response.status,
+        status: 202,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
