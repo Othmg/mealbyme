@@ -57,7 +57,7 @@ export function MealPlanView() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const response = await fetch('/api/create-meal-plan', {
+      const response = await fetch('/create-meal-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
