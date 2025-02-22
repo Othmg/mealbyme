@@ -27,4 +27,6 @@ export interface Recipe {
     dietaryTags: string[];
     allergens: string[];
   };
+  fitnessGoal?: string;
+  mealType?: string;
 }

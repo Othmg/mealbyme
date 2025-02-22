@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import OpenAI from 'openai';
-import { Lock, Crown } from 'lucide-react';
+import { Lock, Crown, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import type { Recipe } from '../types';
 
 const openai = new OpenAI({
@@ -13,6 +14,9 @@ interface RecipeFormData {
   likedIngredients: string;
   dislikedIngredients: string;
   servingSize: number;
+  fitnessGoal: string | null;
+  dietaryNeeds: string[];
+  mealType: string | null;
 }
 
 interface RecipeFormProps {
@@ -34,6 +38,14 @@ const SERVING_SIZE_OPTIONS = [
   { value: 6, label: 'Party (6 people)' }
 ];
 
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+const DIETARY_NEEDS = ['Diabetic-friendly', 'gluten-free', 'digestive health'];
+const FITNESS_GOALS = [
+  { value: 'weight_loss', label: 'Weight Loss' },
+  { value: 'muscle_gain', label: 'Muscle Gain' },
+  { value: 'maintenance', label: 'Maintenance' }
+];
+
 export function RecipeForm({
   user,
   isSubscribed,
@@ -49,13 +61,50 @@ export function RecipeForm({
     desiredDish: '',
     likedIngredients: '',
     dislikedIngredients: '',
-    servingSize: 2
+    servingSize: 2,
+    fitnessGoal: null,
+    dietaryNeeds: [],
+    mealType: null
   });
   const [loading, setLoading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Load user preferences when component mounts
+  useEffect(() => {
+    if (user) {
+      loadUserPreferences();
+    }
+  }, [user]);
+
+  const loadUserPreferences = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading preferences:', error);
+        return;
+      }
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          fitnessGoal: data.fitness_goal || null,
+          dietaryNeeds: data.dietary_needs || [],
+          mealType: data.preferred_meal_types?.[0] || null, // Use first preferred meal type as default
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading preferences:', err);
+    }
+  };
 
   const validateRecipeData = (data: any): data is Recipe => {
     if (!data || typeof data !== 'object') return false;
-    
+
     const requiredFields = ['title', 'ingredients', 'steps', 'cookingTime', 'servings', 'difficulty'];
     for (const field of requiredFields) {
       if (!(field in data)) return false;
@@ -78,7 +127,7 @@ export function RecipeForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isSubscribed && dailyGenerations >= 5) {
       onShowSubscriptionModal();
       return;
@@ -87,15 +136,31 @@ export function RecipeForm({
     setLoading(true);
 
     try {
-      const dietaryRestrictionsText = dietaryRestrictions.length > 0 
+      const dietaryRestrictionsText = dietaryRestrictions.length > 0
         ? `\nDietary restrictions: ${dietaryRestrictions.join(', ')}`
         : '';
 
+      const dietaryNeedsText = formData.dietaryNeeds.length > 0
+        ? `\nDietary needs: ${formData.dietaryNeeds.join(', ')}`
+        : '';
+
+      const fitnessGoalText = formData.fitnessGoal
+        ? `\nFitness goal: ${formData.fitnessGoal.replace('_', ' ')}`
+        : '';
+
+      const mealTypeText = formData.mealType
+        ? `\nMeal type: ${formData.mealType}`
+        : '';
+
       const prompt = `Create a recipe based on these preferences:
-Desired dish: ${formData.desiredDish}${dietaryRestrictionsText}
+Desired dish: ${formData.desiredDish}${dietaryRestrictionsText}${dietaryNeedsText}${fitnessGoalText}${mealTypeText}
 Liked ingredients: ${formData.likedIngredients}
 Disliked ingredients: ${formData.dislikedIngredients}
 Serving size: ${formData.servingSize} ${formData.servingSize === 1 ? 'person' : 'people'}
+
+${formData.fitnessGoal ? `Please ensure the recipe aligns with the ${formData.fitnessGoal.replace('_', ' ')} goal by adjusting macronutrients and portion sizes appropriately.` : ''}
+${formData.dietaryNeeds.length > 0 ? `The recipe must strictly follow these dietary needs: ${formData.dietaryNeeds.join(', ')}` : ''}
+${formData.mealType ? `This recipe should be suitable for ${formData.mealType} and contain appropriate ingredients and portions for this meal type.` : ''}
 
 Please provide a detailed recipe in JSON format with the following structure:
 {
@@ -114,16 +179,19 @@ Please provide a detailed recipe in JSON format with the following structure:
     "sodium": "amount in mg",
     "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
     "allergens": ["dairy", "gluten", "nuts", etc]
-  }
+  },
+  "fitnessGoal": "${formData.fitnessGoal || ''}",
+  "mealType": "${formData.mealType || ''}"
 }
 
 IMPORTANT: 
 - Adjust all ingredient amounts to exactly match the specified serving size of ${formData.servingSize} ${formData.servingSize === 1 ? 'person' : 'people'}
 - Respond with ONLY the JSON object, no additional text.
-- ALWAYS include detailed nutritional information in the dietaryInfo object.`;
+- ALWAYS include detailed nutritional information in the dietaryInfo object.
+- Ensure macronutrients align with the specified fitness goal and meal type if provided.`;
 
       const thread = await openai.beta.threads.create();
-      
+
       await openai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: prompt
@@ -149,11 +217,11 @@ IMPORTANT:
       if (response?.type === 'text' && response.text) {
         try {
           const recipeData = JSON.parse(response.text.value);
-          
+
           if (!validateRecipeData(recipeData)) {
             throw new Error('Invalid recipe format received from AI');
           }
-          
+
           onRecipeGenerated(recipeData);
           onIncrementGenerations();
         } catch (parseError) {
@@ -304,6 +372,114 @@ IMPORTANT:
         </div>
       </div>
 
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+        >
+          <span className="font-medium">Advanced Customization</span>
+          {showAdvanced ? (
+            <ChevronUp className="w-5 h-5" />
+          ) : (
+            <ChevronDown className="w-5 h-5" />
+          )}
+        </button>
+
+        {showAdvanced && (
+          <div className="relative mt-4">
+            <div className={`space-y-4 ${!user && 'opacity-60'}`}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fitness Goal
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FITNESS_GOALS.map(goal => (
+                    <button
+                      key={goal.value}
+                      type="button"
+                      onClick={() => user && setFormData(prev => ({
+                        ...prev,
+                        fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
+                      }))}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                      {goal.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dietary Needs
+                </label>
+                <div className="space-y-2">
+                  {DIETARY_NEEDS.map(need => (
+                    <button
+                      key={need}
+                      type="button"
+                      onClick={() => user && setFormData(prev => ({
+                        ...prev,
+                        dietaryNeeds: prev.dietaryNeeds.includes(need)
+                          ? prev.dietaryNeeds.filter(n => n !== need)
+                          : [...prev.dietaryNeeds, need]
+                      }))}
+                      className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                      {need}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Meal Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {MEAL_TYPES.map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => user && setFormData(prev => ({
+                        ...prev,
+                        mealType: prev.mealType === type ? null : type
+                      }))}
+                      className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${formData.mealType === type
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!user && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 backdrop-blur-[2px] rounded-md">
+                <button
+                  type="button"
+                  onClick={onShowAuthModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] text-white rounded-lg hover:from-[#FF5555] hover:to-[#E6A300] transition-colors shadow-md"
+                >
+                  <Lock className="w-5 h-5" />
+                  <span>Sign in to customize</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <button
         type="submit"
         disabled={loading || !formData.desiredDish.trim() || (!isSubscribed && dailyGenerations >= 5)}
@@ -314,7 +490,7 @@ IMPORTANT:
 
       {!isSubscribed && dailyGenerations >= 5 && (
         <p className="text-sm text-center text-gray-600">
-          You've reached your daily limit. 
+          You've reached your daily limit.
           <button
             type="button"
             onClick={onShowSubscriptionModal}
