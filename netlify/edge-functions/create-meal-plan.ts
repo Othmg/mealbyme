@@ -1,15 +1,6 @@
+import { Context } from "@netlify/edge-functions";
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
-
-// Polyfill global for edge functions
-declare global {
-  var global: any;
-}
-
-if (!('global' in globalThis)) {
-  (globalThis as any).global = globalThis;
-}
-
 
 const openai = new OpenAI({
   apiKey: Deno.env.get('OPENAI_API_KEY') || '',
@@ -25,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: Context) {
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -68,13 +59,13 @@ export default async function handler(request: Request) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
+    
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }
 
     // Parse request body
-    const {
+    const { 
       servings,
       dietaryNeeds,
       fitnessGoal,
@@ -85,7 +76,7 @@ export default async function handler(request: Request) {
 
     // Create the meal plan request
     const thread = await openai.beta.threads.create();
-
+    
     const prompt = `Create a 3-day meal plan with the following requirements:
 
 Preferences:

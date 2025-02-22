@@ -1,3 +1,4 @@
+import { Context } from "@netlify/edge-functions";
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
@@ -210,7 +211,7 @@ async function handleStripeWebhook(event: Stripe.Event) {
   }
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: Context) {
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new Response(null, {

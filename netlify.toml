@@ -1,118 +1,34 @@
 [build]
   command = "npm run build"
   publish = "dist"
-  edge_functions = "api"
-
-[build.environment]
-  NODE_VERSION = "20"
-  EDGE_HANDLER = "true"
-  SECRETS_SCAN_ENABLED = "false"
-  SECRETS_SCAN_OMIT_PATHS = "dist/assets/*"
-  SECRETS_SCAN_OMIT_KEYS = "VITE_OPENAI_API_KEY"
 
 [[edge_functions]]
-  path = "/webhook"
-  function = "webhook"
-
-[[edge_functions]]
-  path = "/create-customer"
-  function = "create-customer"
-
-[[edge_functions]]
-  path = "/create-checkout-session"
-  function = "create-checkout-session"
-
-[[edge_functions]]
-  path = "/create-portal-session"
-  function = "create-portal-session"
-
-[[edge_functions]]
-  path = "/create-meal-plan"
+  path = "/api/create-meal-plan"
   function = "create-meal-plan"
 
 [[edge_functions]]
-  path = "/get-meal-plan"
+  path = "/api/get-meal-plan"
   function = "get-meal-plan"
 
-[[redirects]]
-  from = "/webhook"
-  to = "/.netlify/edge-functions/webhook"
-  status = 200
-  force = true
+[[edge_functions]]
+  path = "/api/webhook"
+  function = "webhook"
 
-[[redirects]]
-  from = "/create-customer"
-  to = "/.netlify/edge-functions/create-customer"
-  status = 200
-  force = true
+[[edge_functions]]
+  path = "/api/create-customer"
+  function = "create-customer"
 
-[[redirects]]
-  from = "/create-checkout-session"
-  to = "/.netlify/edge-functions/create-checkout-session"
-  status = 200
-  force = true
+[[edge_functions]]
+  path = "/api/create-checkout-session"
+  function = "create-checkout-session"
 
-[[redirects]]
-  from = "/create-portal-session"
-  to = "/.netlify/edge-functions/create-portal-session"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/create-meal-plan"
-  to = "/.netlify/edge-functions/create-meal-plan"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/get-meal-plan"
-  to = "/.netlify/edge-functions/get-meal-plan"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[[edge_functions]]
+  path = "/api/create-portal-session"
+  function = "create-portal-session"
 
 [[headers]]
-  for = "/webhook"
+  for = "/api/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, stripe-signature"
-
-[[headers]]
-  for = "/create-customer"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
-
-[[headers]]
-  for = "/create-checkout-session"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-
-[[headers]]
-  for = "/create-portal-session"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-
-[[headers]]
-  for = "/create-meal-plan"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-
-[[headers]]
-  for = "/get-meal-plan"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, stripe-signature"

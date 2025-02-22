@@ -36,7 +36,7 @@ export function NewMealPlan() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const response = await fetch(`/get-meal-plan?threadId=${threadId}&runId=${runId}&mealPlanId=${mealPlanId}`, {
+      const response = await fetch(`/api/get-meal-plan?threadId=${threadId}&runId=${runId}&mealPlanId=${mealPlanId}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -75,7 +75,7 @@ export function NewMealPlan() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const response = await fetch('/create-meal-plan', {
+      const response = await fetch('/api/create-meal-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -198,11 +198,10 @@ export function NewMealPlan() {
                           ...prev,
                           fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
                         }))}
-                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          formData.fitnessGoal === goal.value
-                            ? 'bg-[#FF6B6B] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {goal.label}
                       </button>
@@ -225,11 +224,10 @@ export function NewMealPlan() {
                             ? prev.dietaryNeeds.filter(n => n !== need)
                             : [...prev.dietaryNeeds, need]
                         }))}
-                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${
-                          formData.dietaryNeeds.includes(need)
-                            ? 'bg-[#FF6B6B] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {need}
                       </button>

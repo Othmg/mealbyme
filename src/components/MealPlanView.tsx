@@ -57,7 +57,7 @@ export function MealPlanView() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const response = await fetch('/create-meal-plan', {
+      const response = await fetch('/api/create-meal-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ export function MealPlanView() {
                         </div>
                         {meal && (
                           <button
-                            onClick={() => navigate(`/recipe/${meal.recipe_id}`, { 
+                            onClick={() => navigate(`/recipe/${meal.recipe_id}`, {
                               state: { recipe: meal.meal_plan_recipes }
                             })}
                             className="w-full text-left group"

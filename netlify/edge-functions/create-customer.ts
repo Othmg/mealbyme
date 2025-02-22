@@ -1,3 +1,4 @@
+import { Context } from "@netlify/edge-functions";
 import Stripe from 'stripe';
 
 // Validate and initialize the Stripe secret key
@@ -12,7 +13,7 @@ const stripe = new Stripe(stripeSecretKey, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, context: Context) {
   console.log('Received request:', {
     method: request.method,
     url: request.url,
