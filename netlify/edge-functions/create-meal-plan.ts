@@ -1,4 +1,3 @@
-# Copy content from api/create-meal-plan.ts
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
@@ -59,13 +58,13 @@ export default async function handler(request: Request) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }
 
     // Parse request body
-    const { 
+    const {
       servings,
       dietaryNeeds,
       fitnessGoal,
@@ -76,7 +75,7 @@ export default async function handler(request: Request) {
 
     // Create the meal plan request
     const thread = await openai.beta.threads.create();
-    
+
     const prompt = `Create a 3-day meal plan with the following requirements:
 
 Preferences:

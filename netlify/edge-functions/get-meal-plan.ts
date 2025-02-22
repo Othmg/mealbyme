@@ -1,4 +1,3 @@
-# Copy content from api/get-meal-plan.ts
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
@@ -59,7 +58,7 @@ export default async function handler(request: Request) {
     // Verify the JWT token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       throw new Error('Invalid authentication');
     }
@@ -76,7 +75,7 @@ export default async function handler(request: Request) {
 
     // Check run status
     const runStatus = await openai.beta.threads.runs.retrieve(threadId, runId);
-    
+
     if (runStatus.status === 'completed') {
       const messages = await openai.beta.threads.messages.list(threadId);
       const response = messages.data[0].content[0];
