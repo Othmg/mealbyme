@@ -6,6 +6,10 @@ import { SavedRecipes } from './components/SavedRecipes';
 import { SubscriptionPage } from './components/SubscriptionPage';
 import { UserProfile } from './components/UserProfile';
 import { MealPlanner } from './components/MealPlanner';
+import { NewMealPlan } from './components/NewMealPlan';
+import { MealPlanList } from './components/MealPlanList';
+import { MealPlanView } from './components/MealPlanView';
+import { Recipe } from './components/Recipe';
 import { PrivateRoute } from './components/PrivateRoute';
 import './index.css';
 
@@ -31,6 +35,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/meal-planner" element={
           <PrivateRoute>
             <MealPlanner />
+          </PrivateRoute>
+        }>
+          <Route index element={<MealPlanList />} />
+          <Route path="new" element={<NewMealPlan />} />
+          <Route path="plans/:planId" element={<MealPlanView />} />
+        </Route>
+        <Route path="/recipe/:id" element={
+          <PrivateRoute>
+            <Recipe />
           </PrivateRoute>
         } />
 

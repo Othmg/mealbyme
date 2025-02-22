@@ -177,8 +177,8 @@ Please provide a detailed recipe in JSON format with the following structure:
     "fats": "amount in grams",
     "fiber": "amount in grams",
     "sodium": "amount in mg",
-    "dietaryTags": [],
-    "allergens": []
+    "dietaryTags": ["vegetarian", "vegan", "gluten-free", etc],
+    "allergens": ["dairy", "gluten", "nuts", etc]
   },
   "fitnessGoal": "${formData.fitnessGoal || ''}",
   "mealType": "${formData.mealType || ''}"
@@ -403,8 +403,8 @@ IMPORTANT:
                         fitnessGoal: prev.fitnessGoal === goal.value ? null : goal.value
                       }))}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${formData.fitnessGoal === goal.value
-                        ? 'bg-[#FF6B6B] text-white'
-                        : 'bg-gray-100 text-gray-700'
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {goal.label}
@@ -429,8 +429,8 @@ IMPORTANT:
                           : [...prev.dietaryNeeds, need]
                       }))}
                       className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${formData.dietaryNeeds.includes(need)
-                        ? 'bg-[#FF6B6B] text-white'
-                        : 'bg-gray-100 text-gray-700'
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {need}
@@ -453,8 +453,8 @@ IMPORTANT:
                         mealType: prev.mealType === type ? null : type
                       }))}
                       className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${formData.mealType === type
-                        ? 'bg-[#FF6B6B] text-white'
-                        : 'bg-gray-100 text-gray-700'
+                          ? 'bg-[#FF6B6B] text-white'
+                          : 'bg-gray-100 text-gray-700'
                         }`}
                     >
                       {type}
@@ -465,7 +465,7 @@ IMPORTANT:
             </div>
 
             {!user && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-30 backdrop-blur-[2px] rounded-md">
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-20 backdrop-blur-[2px] rounded-md">
                 <button
                   type="button"
                   onClick={onShowAuthModal}
@@ -483,7 +483,7 @@ IMPORTANT:
       <button
         type="submit"
         disabled={loading || !formData.desiredDish.trim() || (!isSubscribed && dailyGenerations >= 5)}
-        className="w-full flex justify-center py-2 sm:py-3 px-4 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+        className="w-full flex justify-center py-2 sm:py-3 px-4 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] hover:from-[#FF5555] hover:to-[#E6A300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B6B] disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-200"
       >
         {loading ? 'Creating Your Recipe...' : 'Create My Recipe'}
       </button>

@@ -1,33 +1,42 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Crown, Calendar } from 'lucide-react';
+import { Outlet } from 'react-router-dom';
+import { Crown } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { SubscriptionModal } from './SubscriptionModal';
 
 export function MealPlanner() {
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Recipe Generator
-          </Link>
-        </div>
+  const { isSubscribed } = useAuth();
+  const [showSubscriptionModal, setShowSubscriptionModal] = React.useState(false);
 
-        <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8 text-gray-400" />
+  if (!isSubscribed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Premium Feature</h1>
+            <p className="text-gray-600 mb-6">
+              Upgrade to Premium to access our meal planning feature and create personalized meal plans.
+            </p>
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF6B6B] to-[#FFB400] text-white rounded-lg hover:from-[#FF5555] hover:to-[#E6A300] transition-colors"
+            >
+              <Crown className="w-5 h-5" />
+              Upgrade to Premium
+            </button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Meal Planner</h1>
-          <p className="text-gray-600 mb-6">Coming Soon!</p>
-          <p className="text-sm text-gray-500">
-            We're working hard to bring you an amazing meal planning experience.
-            Check back soon!
-          </p>
+
+          <SubscriptionModal
+            isOpen={showSubscriptionModal}
+            onClose={() => setShowSubscriptionModal(false)}
+          />
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <Outlet />;
 }

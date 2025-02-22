@@ -213,7 +213,7 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-20 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
@@ -325,10 +325,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                           ...prev,
                           fitness_goal: prev.fitness_goal === goal.value ? null : goal.value
                         }))}
-                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${preferences.fitness_goal === goal.value
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          preferences.fitness_goal === goal.value
+                            ? 'bg-[#FF6B6B] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
                         {goal.label}
                       </button>
@@ -346,10 +347,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                         key={need}
                         type="button"
                         onClick={() => handleArrayToggle('dietary_needs', need)}
-                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${preferences.dietary_needs.includes(need)
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors text-left ${
+                          preferences.dietary_needs.includes(need)
+                            ? 'bg-[#FF6B6B] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
                         {need}
                       </button>
@@ -367,10 +369,11 @@ export function UserPreferences({ isOpen, onClose, onUpdate }: UserPreferencesPr
                         key={type}
                         type="button"
                         onClick={() => handleArrayToggle('preferred_meal_types', type)}
-                        className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${preferences.preferred_meal_types.includes(type)
-                          ? 'bg-[#FF6B6B] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                        className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-colors ${
+                          preferences.preferred_meal_types.includes(type)
+                            ? 'bg-[#FF6B6B] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
                         {type}
                       </button>
